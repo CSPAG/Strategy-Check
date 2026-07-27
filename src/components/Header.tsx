@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/session";
 import { isDemoMode } from "@/lib/demo-mode";
 import Link from "next/link";
-import { isGlRole } from "@/lib/auth";
+import { canAccessDashboard } from "@/lib/auth";
 import { CspLogo } from "@/components/CspLogo";
 
 export async function Header() {
@@ -21,7 +21,7 @@ export async function Header() {
               <Link href="/" className="text-csp-cyan hover:opacity-80">
                 Übersicht
               </Link>
-              {isGlRole(session.user.role) && (
+              {canAccessDashboard(session.user.role) && (
                 <Link href="/dashboard" className="font-medium text-csp-cyan hover:opacity-80">
                   Dashboard
                 </Link>

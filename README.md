@@ -6,7 +6,7 @@ Web-Applikation für Team-Selbsteinschätzungen zur **CSPstrategie 2026+** (Peri
 
 - **Selbsteinschätzung** pro Team (Factsheet, Reifegrad, Portfolio-Matrix, Strategie-Radar, 10 strategische Ziele)
 - **Factsheet** mit Drucken/PDF (Browser)
-- **GL-Dashboard** mit konsolidierter Matrix und Reifegrad-Heatmap
+- **Dashboard** mit konsolidierter Matrix und Reifegrad-Heatmap
 - **CSP-Login** über Keycloak (`iam.csp-ag.ai`)
 - UI auf **Deutsch**
 
@@ -25,7 +25,7 @@ npm run db:setup
 npm run dev
 ```
 
-Browser: **http://localhost:3000** — voller Zugriff als Demo-GL (alle Teams + Dashboard).
+Browser: **http://localhost:3000** — voller Zugriff als Demo-Admin (alle Teams + Dashboard).
 
 ## Installation mit Keycloak-Login
 
@@ -43,7 +43,8 @@ In der [Keycloak Admin Console](https://iam.csp-ag.ai/admin/) (Realm bestätigen
 6. **Web origins:** `http://localhost:3000` (+ Prod)
 7. Client Secret kopieren
 8. Scopes: `openid`, `profile`, `email`
-9. Rollenclaims im ID-Token/Userinfo aktivieren (siehe [`docs/keycloak-rollen.md`](docs/keycloak-rollen.md))
+9. Client-Rollen anlegen und zuweisen: `admin_ps`, `editor_ps`, `viewer` (siehe [`docs/keycloak-rollen.md`](docs/keycloak-rollen.md))
+10. Rollenclaims im ID-Token/Userinfo aktivieren
 
 Issuer-URL: `https://iam.csp-ag.ai/realms/<REALM>`
 
@@ -92,8 +93,8 @@ Lokale SQLite-Datei (`prisma/dev.db`) wird nicht mehr verwendet.
 
 - Auth.js verwendet verschlüsselte JWT-Sessions mit acht Stunden Laufzeit; es gibt keinen DB-Session-Store.
 - Beim ersten serverseitigen Zugriff wird der Benutzer anhand der stabilen Keycloak-`sub` in der Datenbank angelegt.
-- **Rollen:** stammen ausschließlich aus Keycloak-Claims; `gl` wird zu `GL_VIEWER`, `admin` zu `ADMIN`, alle anderen authentifizierten Benutzer zu `TEAM_EDITOR`.
-- **Team-Zuordnung:** Feld `teamId` am User (z. B. via Prisma Studio oder SQL), damit Team-Editoren nur ihr Team bearbeiten.
+- **Rollen:** stammen ausschließlich aus Keycloak-Claims; `admin_ps` → `ADMIN` (Vollzugriff), `editor_ps` → `EDITOR` (alle Circles + Dashboard), `viewer` → `VIEWER` (Dashboard + nur lesen). Ohne bekannte Rolle: `VIEWER`.
+- **Team-Zuordnung:** optional (`teamId`); für die Berechtigung nicht mehr nötig.
 
 ```bash
 npx prisma studio
