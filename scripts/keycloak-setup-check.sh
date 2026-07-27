@@ -7,7 +7,7 @@
 set -euo pipefail
 
 ISSUER="${KEYCLOAK_ISSUER:-https://iam.csp-ag.ai/realms/master}"
-CLIENT_ID="${KEYCLOAK_CLIENT_ID:-strategy-check}"
+CLIENT_ID="${KEYCLOAK_CLIENT_ID:-Pako_ko_strat}"
 APP_URL="${AUTH_URL:-http://localhost:3000}"
 
 DISC="${ISSUER}/.well-known/openid-configuration"

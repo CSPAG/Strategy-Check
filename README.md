@@ -33,7 +33,7 @@ Browser: **http://localhost:3000** — voller Zugriff als Demo-GL (alle Teams + 
 
 In der [Keycloak Admin Console](https://iam.csp-ag.ai/admin/) (Realm bestätigen, oft nicht `master`):
 
-1. Client erstellen, z. B. Client ID `strategy-check`
+1. Client erstellen, z. B. Client ID `Pako_ko_strat`
 2. Client authentication: **ON** (Confidential)
 3. Standard flow / Authorization Code: **ON**
 4. **Valid redirect URIs:**

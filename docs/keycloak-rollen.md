@@ -13,7 +13,8 @@ Die Anwendung liest Rollen ausschließlich aus dem validierten OIDC-Profil
 | `admin` | `ADMIN` | Alle Teams und GL-Dashboard |
 
 Zusätzlich werden die Client-Rollen `strategy-check-editor`,
-`strategy-check-gl` und `strategy-check-admin` akzeptiert. Die Auswertung ist
+`strategy-check-gl` und `strategy-check-admin` akzeptiert. Diese Rolenamen
+bleiben absichtlich stabil, auch wenn die Client-ID `Pako_ko_strat` lautet. Die Auswertung ist
 case-insensitive; unbekannte Rollen werden verworfen. Ohne bekannte App-Rolle
 gilt ein authentifizierter Benutzer als `TEAM_EDITOR`.
 
@@ -26,7 +27,7 @@ Die App unterstützt:
 - `resource_access.<KEYCLOAK_CLIENT_ID>.roles`
 
 Rollen können deshalb als Realm- oder Client-Rollen geführt werden. Bevorzugt
-werden Client-Rollen am Client `strategy-check`, damit Berechtigungen nicht
+werden Client-Rollen am Client `Pako_ko_strat`, damit Berechtigungen nicht
 versehentlich auf andere Anwendungen wirken.
 
 Falls die Claims im OIDC-Profil fehlen, im Dedicated Client Scope einen
