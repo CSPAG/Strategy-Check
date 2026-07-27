@@ -1,6 +1,9 @@
 import { getSession } from "@/lib/session";
-import { canEditAssessment } from "@/lib/assessment-access";
-import { isGlRole } from "@/lib/auth";
+import {
+  canEditAssessment,
+  canViewAssessment,
+  isAssessmentReadOnly,
+} from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
 import { AssessmentForm } from "@/components/AssessmentForm";
 import Link from "next/link";
@@ -22,13 +25,12 @@ export default async function AssessmentPage({
 
   if (!assessment) notFound();
 
-  const canEdit = canEditAssessment(session.user, assessment);
-  const readOnly =
-    !canEdit || (assessment.status === "SUBMITTED" && !isGlRole(session.user.role));
-
-  if (!canEdit && !isGlRole(session.user.role)) {
+  if (!canViewAssessment(session.user, assessment)) {
     redirect("/");
   }
+
+  const readOnly = isAssessmentReadOnly(session.user, assessment);
+  const canEdit = canEditAssessment(session.user, assessment);
 
   return (
     <>
@@ -41,6 +43,14 @@ export default async function AssessmentPage({
             Selbsteinschätzung: {assessment.team.name}
           </h1>
           <p className="text-gray-600">{assessment.period.label}</p>
+          {readOnly && canEdit && assessment.status === "SUBMITTED" && (
+            <p className="mt-1 text-sm text-amber-800">
+              Eingereicht — nur Admins können weiter bearbeiten.
+            </p>
+          )}
+          {readOnly && !canEdit && (
+            <p className="mt-1 text-sm text-gray-500">Nur Lesen (Viewer)</p>
+          )}
         </div>
         <Link
           href={`/factsheet/${assessment.id}`}

@@ -8,15 +8,18 @@ Die Anwendung liest Rollen ausschließlich aus dem validierten OIDC-Profil
 
 | Keycloak-Slug | App-Rolle | Zugriff |
 |---|---|---|
-| kein App-Slug, `employee`, `team_editor` | `TEAM_EDITOR` | Zugewiesenes Team |
-| `gl`, `gl_viewer` | `GL_VIEWER` | Alle Teams und GL-Dashboard |
-| `admin` | `ADMIN` | Alle Teams und GL-Dashboard |
+| `admin_ps` | `ADMIN` | Vollzugriff: alle Circles/Teams bearbeiten (auch eingereichte), Dashboard, Factsheets |
+| `editor_ps` | `EDITOR` | Alle Circles/Teams bearbeiten, Dashboard, Factsheets |
+| `viewer` | `VIEWER` | Dashboard + Assessments/Factsheets nur lesen |
 
-Zusätzlich werden die Client-Rollen `strategy-check-editor`,
-`strategy-check-gl` und `strategy-check-admin` akzeptiert. Diese Rolenamen
-bleiben absichtlich stabil, auch wenn die Client-ID `Pako_ko_strat` lautet. Die Auswertung ist
-case-insensitive; unbekannte Rollen werden verworfen. Ohne bekannte App-Rolle
-gilt ein authentifizierter Benutzer als `TEAM_EDITOR`.
+Zusätzliche Aliase (Abwärtskompatibilität):
+
+- Admin: `admin`, `strategy-check-admin`
+- Editor: `employee`, `team_editor`, `team-editor`, `strategy-check-editor`
+- Viewer: `gl`, `gl_viewer`, `gl-viewer`, `strategy-check-gl`
+
+Die Auswertung ist case-insensitive; unbekannte Rollen werden verworfen. Ohne
+bekannte App-Rolle gilt ein authentifizierter Benutzer als `VIEWER`.
 
 ## Claim-Quellen
 
@@ -37,9 +40,9 @@ müssen im ID-Token und idealerweise in Userinfo enthalten sein.
 Nach einer Rollenänderung müssen sich Benutzer ab- und wieder anmelden, da die
 Anwendung acht Stunden gültige JWT-Sessions verwendet.
 
-## Benutzer- und Team-Zuordnung
+## Benutzer-Provisionierung
 
 Beim ersten serverseitigen Zugriff wird der Benutzer anhand der stabilen
 Keycloak-`sub` in der App-Datenbank angelegt. E-Mail dient nur als
-Verknüpfungs-Fallback. Die fachliche `teamId` bleibt lokal und kann mit
-`npx prisma studio` gepflegt werden.
+Verknüpfungs-Fallback. Das optionale Feld `teamId` ist für den Zugriff nicht
+mehr erforderlich (Editoren und Admins bearbeiten alle Circles).

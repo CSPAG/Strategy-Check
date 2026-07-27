@@ -1,5 +1,9 @@
 import { getSession } from "@/lib/session";
-import { canEditAssessment, canViewAssessment } from "@/lib/assessment-access";
+import {
+  canEditAssessment,
+  canViewAssessment,
+  isAssessmentReadOnly,
+} from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -67,6 +71,13 @@ export async function PATCH(
 
   if (!canEditAssessment(session.user, assessment)) {
     return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+  }
+
+  if (isAssessmentReadOnly(session.user, assessment)) {
+    return NextResponse.json(
+      { error: "Eingereichte Assessments können nur von Admins geändert werden" },
+      { status: 403 }
+    );
   }
 
   const body = await req.json();

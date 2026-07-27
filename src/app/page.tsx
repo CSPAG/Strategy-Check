@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { isGlRole } from "@/lib/auth";
+import { canEditAnyAssessment, canAccessDashboard } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatTeamCategory } from "@/lib/constants";
 import Link from "next/link";
@@ -18,11 +18,11 @@ export default async function HomePage() {
     return <p>Keine aktive Periode konfiguriert.</p>;
   }
 
-  const isGl = isGlRole(session.user.role);
+  const canEdit = canEditAnyAssessment(session.user.role);
+  const canDash = canAccessDashboard(session.user.role);
   const assessments = await prisma.assessment.findMany({
     where: {
       periodId: { in: periods.map((p) => p.id) },
-      ...(!isGl ? { teamId: session.user.teamId ?? "__unassigned__" } : {}),
     },
     include: { team: true, period: true },
     orderBy: [{ period: { createdAt: "asc" } }, { team: { name: "asc" } }],
@@ -40,13 +40,6 @@ export default async function HomePage() {
         Selbsteinschätzung zur CSP-Strategie 2026+ für den Strategie-Check. Der Strategie-Check
         ist für H1 2026 retrospektiv und für H2 2026 auszufüllen.
       </p>
-
-      {!session.user.teamId && !isGl && (
-        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Ihrem Benutzer ist noch kein Team zugewiesen. Bitte wenden Sie sich an die GL /
-          IT, damit Ihr Konto einem Team zugeordnet wird.
-        </p>
-      )}
 
       <div className="mt-8 space-y-10">
         {byPeriod.map(({ period, items }) => (
@@ -71,14 +64,14 @@ export default async function HomePage() {
                     <StatusBadge status={a.status} />
                   </div>
                   <div className="flex gap-2">
-                    {(isGl || a.teamId === session.user.teamId) && (
-                      <Link
-                        href={`/assessment/${a.id}`}
-                        className="rounded-md bg-csp-cyan px-3 py-1.5 text-sm text-white hover:opacity-90"
-                      >
-                        {a.status === "SUBMITTED" ? "Ansehen" : "Bearbeiten"}
-                      </Link>
-                    )}
+                    <Link
+                      href={`/assessment/${a.id}`}
+                      className="rounded-md bg-csp-cyan px-3 py-1.5 text-sm text-white hover:opacity-90"
+                    >
+                      {canEdit && a.status !== "SUBMITTED"
+                        ? "Bearbeiten"
+                        : "Ansehen"}
+                    </Link>
                     <Link
                       href={`/factsheet/${a.id}`}
                       className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
@@ -93,7 +86,7 @@ export default async function HomePage() {
         ))}
       </div>
 
-      {isGl && (
+      {canDash && (
         <p className="mt-6">
           <Link href="/dashboard" className="font-medium text-csp-cyan hover:underline">
             → Zum Dashboard (Entwicklung pro Halbjahr)

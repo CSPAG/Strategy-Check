@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { isGlRole } from "@/lib/auth";
+import { canAccessDashboard } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { getStrategicMaturityRows } from "@/lib/assessment-mapper";
@@ -11,7 +11,7 @@ import { CSP_CYAN, CSP_CYAN_LIGHT } from "@/lib/brand";
 export default async function DashboardPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
-  if (!isGlRole(session.user.role)) redirect("/");
+  if (!canAccessDashboard(session.user.role)) redirect("/");
 
   const assessments = await prisma.assessment.findMany({
     where: { status: "SUBMITTED" },

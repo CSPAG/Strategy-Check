@@ -1,16 +1,19 @@
-export type AppRole = "TEAM_EDITOR" | "GL_VIEWER" | "ADMIN";
+export type AppRole = "ADMIN" | "EDITOR" | "VIEWER";
 
 const ROLE_ALIASES: Record<string, AppRole> = {
-  employee: "TEAM_EDITOR",
-  team_editor: "TEAM_EDITOR",
-  "team-editor": "TEAM_EDITOR",
-  "strategy-check-editor": "TEAM_EDITOR",
-  gl: "GL_VIEWER",
-  gl_viewer: "GL_VIEWER",
-  "gl-viewer": "GL_VIEWER",
-  "strategy-check-gl": "GL_VIEWER",
+  admin_ps: "ADMIN",
   admin: "ADMIN",
   "strategy-check-admin": "ADMIN",
+  editor_ps: "EDITOR",
+  employee: "EDITOR",
+  team_editor: "EDITOR",
+  "team-editor": "EDITOR",
+  "strategy-check-editor": "EDITOR",
+  viewer: "VIEWER",
+  gl: "VIEWER",
+  gl_viewer: "VIEWER",
+  "gl-viewer": "VIEWER",
+  "strategy-check-gl": "VIEWER",
 };
 
 function pushStrings(target: string[], value: unknown): void {
@@ -55,15 +58,23 @@ export function toAppRoles(roleNames: string[]): AppRole[] {
 
 export function normalizeAppRoles(roles: AppRole[] | null | undefined): AppRole[] {
   const unique = [...new Set(roles ?? [])];
-  return unique.length > 0 ? unique : ["TEAM_EDITOR"];
+  return unique.length > 0 ? unique : ["VIEWER"];
 }
 
 export function primaryRole(roles: AppRole[]): AppRole {
   if (roles.includes("ADMIN")) return "ADMIN";
-  if (roles.includes("GL_VIEWER")) return "GL_VIEWER";
-  return "TEAM_EDITOR";
+  if (roles.includes("EDITOR")) return "EDITOR";
+  return "VIEWER";
 }
 
-export function isGlRole(role: AppRole | string | undefined): boolean {
-  return role === "GL_VIEWER" || role === "ADMIN";
+export function canAccessDashboard(role: AppRole | string | undefined): boolean {
+  return role === "ADMIN" || role === "EDITOR" || role === "VIEWER";
+}
+
+export function canEditAnyAssessment(role: AppRole | string | undefined): boolean {
+  return role === "ADMIN" || role === "EDITOR";
+}
+
+export function canUnlockSubmitted(role: AppRole | string | undefined): boolean {
+  return role === "ADMIN";
 }

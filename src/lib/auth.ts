@@ -2,8 +2,10 @@ import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import type { AppRole } from "./keycloak-roles";
 import {
+  canAccessDashboard,
+  canEditAnyAssessment,
+  canUnlockSubmitted,
   collectKeycloakRoleNames,
-  isGlRole,
   normalizeAppRoles,
   primaryRole,
   toAppRoles,
@@ -137,4 +139,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 });
 
-export { isGlRole };
+export { canAccessDashboard, canEditAnyAssessment, canUnlockSubmitted };

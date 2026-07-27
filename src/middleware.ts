@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { isGlRole } from "@/lib/keycloak-roles";
+import { canAccessDashboard } from "@/lib/keycloak-roles";
 import { NextResponse } from "next/server";
 
 function getRequestOrigin(req: Request): string {
@@ -67,7 +67,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  if (pathname.startsWith("/dashboard") && !isGlRole(req.auth.user.role)) {
+  if (pathname.startsWith("/dashboard") && !canAccessDashboard(req.auth.user.role)) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
