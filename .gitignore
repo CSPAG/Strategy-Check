@@ -3,7 +3,10 @@ node_modules
 out
 .env
 .env.local
+.env*.local
 *.db
 *.db-journal
 *.tsbuildinfo
 .DS_Store
+.vercel
+!.env.example
