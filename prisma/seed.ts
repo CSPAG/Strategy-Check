@@ -80,7 +80,6 @@ async function main() {
           teamId_periodId: { teamId: team.id, periodId: period.id },
         },
         update: {
-          ...EMPTY_ASSESSMENT,
           teamType: team.teamType,
         },
         create: {
@@ -94,7 +93,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded ${teams.length} teams, periods ${PERIODS.map((p) => p.label).join(" / ")}, assessments reset to DRAFT`
+    `Seeded ${teams.length} teams, periods ${PERIODS.map((p) => p.label).join(" / ")}, assessments ensured`
   );
 }
 
