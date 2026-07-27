@@ -5,17 +5,29 @@ import { NextResponse } from "next/server";
 function getRequestOrigin(req: Request): string {
   const forwardedHost = req.headers.get("x-forwarded-host");
   const host = forwardedHost ?? req.headers.get("host");
-  if (!host) return req.nextUrl.origin;
+  const fallbackOrigin = (() => {
+    try {
+      return new URL(req.url).origin;
+    } catch {
+      return process.env.AUTH_URL ?? "http://localhost:3000";
+    }
+  })();
+  if (!host) return fallbackOrigin;
 
   const forwardedProto = req.headers.get("x-forwarded-proto");
   const protocol =
     forwardedProto?.split(",")[0]?.trim() ||
-    req.nextUrl.protocol.replace(":", "") ||
-    "http";
+    (() => {
+      try {
+        return new URL(req.url).protocol.replace(":", "");
+      } catch {
+        return "https";
+      }
+    })();
   const origin = `${protocol}://${host}`;
   return origin.startsWith("http://") || origin.startsWith("https://")
     ? origin
-    : req.nextUrl.origin;
+    : fallbackOrigin;
 }
 
 export default auth((req) => {
