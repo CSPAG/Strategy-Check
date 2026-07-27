@@ -18,20 +18,19 @@ export default async function HomePage() {
     return <p>Keine aktive Periode konfiguriert.</p>;
   }
 
+  const isGl = isGlRole(session.user.role);
   const assessments = await prisma.assessment.findMany({
-    where: { periodId: { in: periods.map((p) => p.id) } },
+    where: {
+      periodId: { in: periods.map((p) => p.id) },
+      ...(!isGl ? { teamId: session.user.teamId ?? "__unassigned__" } : {}),
+    },
     include: { team: true, period: true },
     orderBy: [{ period: { createdAt: "asc" } }, { team: { name: "asc" } }],
   });
 
-  const isGl = isGlRole(session.user.role);
-  const visible = isGl
-    ? assessments
-    : assessments.filter((a) => a.teamId === session.user.teamId);
-
   const byPeriod = periods.map((period) => ({
     period,
-    items: visible.filter((a) => a.periodId === period.id),
+    items: assessments.filter((a) => a.periodId === period.id),
   }));
 
   return (

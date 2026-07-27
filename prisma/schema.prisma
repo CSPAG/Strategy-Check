@@ -8,52 +8,19 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("TEAM_EDITOR")
-  teamId        String?
-  team          Team?     @relation(fields: [teamId], references: [id])
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
+  id             String    @id @default(cuid())
+  keycloakSub    String?   @unique
+  keycloakIssuer String?
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  role           String    @default("TEAM_EDITOR")
+  teamId         String?
+  team           Team?     @relation(fields: [teamId], references: [id])
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model Team {
@@ -76,29 +43,29 @@ model Period {
 }
 
 model Assessment {
-  id        String   @id @default(cuid())
-  teamId    String
-  periodId  String
-  status    String   @default("DRAFT")
-  teamType  String   @default("")
+  id       String @id @default(cuid())
+  teamId   String
+  periodId String
+  status   String @default("DRAFT")
+  teamType String @default("")
 
-  summary           String @default("")
-  strengths         String @default("")
-  gaps              String @default("")
-  opportunities     String @default("")
-  risks             String @default("")
-  measures          String @default("")
+  summary               String @default("")
+  strengths             String @default("")
+  gaps                  String @default("")
+  opportunities         String @default("")
+  risks                 String @default("")
+  measures              String @default("")
   strategicGoalMaturity String @default("{}")
-  maturityNotes     String @default("")
-  matrixNotes       String @default("")
+  maturityNotes         String @default("")
+  matrixNotes           String @default("")
 
-  matrixXToday      Int @default(3)
-  matrixYToday      Int @default(3)
-  matrixXOutlook    Int @default(3)
-  matrixYOutlook    Int @default(3)
+  matrixXToday   Int @default(3)
+  matrixYToday   Int @default(3)
+  matrixXOutlook Int @default(3)
+  matrixYOutlook Int @default(3)
 
-  maturityToday     Int @default(2)
-  maturityOutlook   Int @default(2)
+  maturityToday   Int @default(2)
+  maturityOutlook Int @default(2)
 
   radarMarketToday       Int @default(3)
   radarMarketOutlook     Int @default(3)
@@ -113,25 +80,25 @@ model Assessment {
   radarTalentToday       Int @default(3)
   radarTalentOutlook     Int @default(3)
 
-  matMarketToday     Int @default(2)
-  matMarketOutlook   Int @default(2)
-  matPortfolioToday  Int @default(2)
-  matPortfolioOutlook Int @default(2)
-  matInnovationToday Int @default(2)
+  matMarketToday       Int @default(2)
+  matMarketOutlook     Int @default(2)
+  matPortfolioToday    Int @default(2)
+  matPortfolioOutlook  Int @default(2)
+  matInnovationToday   Int @default(2)
   matInnovationOutlook Int @default(2)
-  matBusinessToday   Int @default(2)
-  matBusinessOutlook Int @default(2)
-  matGrowthToday     Int @default(2)
-  matGrowthOutlook   Int @default(2)
-  matTalentToday     Int @default(2)
-  matTalentOutlook   Int @default(2)
+  matBusinessToday     Int @default(2)
+  matBusinessOutlook   Int @default(2)
+  matGrowthToday       Int @default(2)
+  matGrowthOutlook     Int @default(2)
+  matTalentToday       Int @default(2)
+  matTalentOutlook     Int @default(2)
 
   strategicGoals String @default("[]")
 
   submittedAt DateTime?
   updatedBy   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   period Period @relation(fields: [periodId], references: [id], onDelete: Cascade)

@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { isGlRole } from "@/lib/auth";
+import { canViewAssessment } from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
 import { FactsheetView } from "@/components/FactsheetView";
 import Link from "next/link";
@@ -22,9 +22,7 @@ export default async function FactsheetPage({
 
   if (!assessment) notFound();
 
-  const canView =
-    isGlRole(session.user.role) || assessment.teamId === session.user.teamId;
-  if (!canView) redirect("/");
+  if (!canViewAssessment(session.user, assessment)) redirect("/");
 
   return (
     <>

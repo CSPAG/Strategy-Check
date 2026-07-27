@@ -1,52 +1,140 @@
 import NextAuth from "next-auth";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "./prisma";
+import Keycloak from "next-auth/providers/keycloak";
+import type { AppRole } from "./keycloak-roles";
+import {
+  collectKeycloakRoleNames,
+  isGlRole,
+  normalizeAppRoles,
+  primaryRole,
+  toAppRoles,
+} from "./keycloak-roles";
 
-function getGlEmails(): Set<string> {
-  const raw = process.env.GL_EMAILS ?? "";
-  return new Set(
-    raw
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-  );
+const isProd = process.env.NODE_ENV === "production";
+
+function decodeJwtPayload(value: unknown): Record<string, unknown> {
+  if (typeof value !== "string") return {};
+  const payload = value.split(".")[1];
+  if (!payload) return {};
+
+  try {
+    const unpadded = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const normalized = unpadded.padEnd(Math.ceil(unpadded.length / 4) * 4, "=");
+    const bytes = Uint8Array.from(atob(normalized), (character) =>
+      character.charCodeAt(0)
+    );
+    return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function displayName(profile: Record<string, unknown>, email?: string | null): string {
+  const given = typeof profile.given_name === "string" ? profile.given_name.trim() : "";
+  const family = typeof profile.family_name === "string" ? profile.family_name.trim() : "";
+  const name = typeof profile.name === "string" ? profile.name.trim() : "";
+  const username =
+    typeof profile.preferred_username === "string"
+      ? profile.preferred_username.trim()
+      : "";
+
+  return name || [given, family].filter(Boolean).join(" ") || username || email?.split("@")[0] || "Benutzer";
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   trustHost: true,
-  adapter: PrismaAdapter(prisma),
+  debug: process.env.AUTH_DEBUG === "true" || process.env.NODE_ENV !== "production",
+  logger: {
+    error(error) {
+      console.error("[auth:error]", error);
+    },
+    warn(code) {
+      console.warn("[auth:warn]", code);
+    },
+  },
+  ...(isProd
+    ? {
+        cookies: {
+          pkceCodeVerifier: {
+            options: {
+              httpOnly: true,
+              sameSite: "lax" as const,
+              secure: true,
+              path: "/",
+            },
+          },
+          state: {
+            options: {
+              httpOnly: true,
+              sameSite: "lax" as const,
+              secure: true,
+              path: "/",
+            },
+          },
+        },
+      }
+    : {}),
   providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: `https://login.microsoftonline.com/${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID}/v2.0`,
+    Keycloak({
+      clientId:
+        process.env.KEYCLOAK_CLIENT_ID ?? process.env.AUTH_KEYCLOAK_ID ?? "",
+      clientSecret:
+        process.env.KEYCLOAK_CLIENT_SECRET ?? process.env.AUTH_KEYCLOAK_SECRET ?? "",
+      issuer: process.env.KEYCLOAK_ISSUER ?? process.env.AUTH_KEYCLOAK_ISSUER,
     }),
   ],
   pages: {
     signIn: "/login",
   },
   callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          include: { team: true },
-        });
-        const email = (session.user.email ?? "").toLowerCase();
-        const isGl = getGlEmails().has(email) || dbUser?.role === "GL_VIEWER";
-
-        session.user.id = user.id;
-        session.user.role = isGl ? "GL_VIEWER" : (dbUser?.role ?? "TEAM_EDITOR");
-        session.user.teamId = dbUser?.teamId ?? null;
-        session.user.teamName = dbUser?.team?.name ?? null;
+    async jwt({ token, account, profile }) {
+      if (account?.providerAccountId) {
+        token.sub = account.providerAccountId;
+        token.keycloakSub = account.providerAccountId;
       }
+
+      if (account) {
+        // Access-, Refresh- und ID-Token werden bewusst nicht im Session-JWT
+        // gespeichert, damit das verschlüsselte Cookie klein bleibt.
+        const idTokenClaims = decodeJwtPayload(account.id_token);
+        const oidcProfile = {
+          ...idTokenClaims,
+          ...((profile as Record<string, unknown> | undefined) ?? {}),
+        };
+        const clientId =
+          process.env.KEYCLOAK_CLIENT_ID ?? process.env.AUTH_KEYCLOAK_ID;
+        token.roles = toAppRoles(collectKeycloakRoleNames(oidcProfile, clientId));
+        token.name = displayName(
+          oidcProfile,
+          typeof token.email === "string" ? token.email : undefined
+        );
+      }
+
+      const roles = normalizeAppRoles(token.roles as AppRole[] | undefined);
+      token.roles = roles;
+      token.role = primaryRole(roles);
+      token.keycloakIssuer =
+        process.env.KEYCLOAK_ISSUER ?? process.env.AUTH_KEYCLOAK_ISSUER;
+      return token;
+    },
+    async session({ session, token }) {
+      session.user.id = token.sub ?? "";
+      session.user.keycloakSub = (token.keycloakSub as string | undefined) ?? token.sub ?? "";
+      session.user.roles = normalizeAppRoles(token.roles as AppRole[] | undefined);
+      session.user.role = primaryRole(session.user.roles);
+      session.user.teamId = null;
+      session.user.teamName = null;
+      session.user.name =
+        (typeof token.name === "string" && token.name) ||
+        session.user.email?.split("@")[0] ||
+        "Benutzer";
       return session;
     },
   },
-  session: { strategy: "database" },
+  session: {
+    strategy: "jwt",
+    maxAge: 8 * 60 * 60,
+  },
 });
 
-export function isGlRole(role: string | undefined): boolean {
-  return role === "GL_VIEWER" || role === "ADMIN";
-}
+export { isGlRole };

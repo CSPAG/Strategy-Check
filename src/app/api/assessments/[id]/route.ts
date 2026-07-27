@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { canEditAssessment } from "@/lib/assessment-access";
+import { canEditAssessment, canViewAssessment } from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -37,6 +37,10 @@ export async function GET(
 
   if (!assessment) {
     return NextResponse.json({ error: "Nicht gefunden" }, { status: 404 });
+  }
+
+  if (!canViewAssessment(session.user, assessment)) {
+    return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
   }
 
   return NextResponse.json(assessment);
