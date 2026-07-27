@@ -3,7 +3,7 @@ Set-Location $PSScriptRoot\..
 
 if (-not (Test-Path .env)) {
   Copy-Item .env.example .env
-  Write-Host "Bitte .env mit Azure Entra ID Werten fuellen, dann erneut ausfuehren."
+  Write-Host "Bitte .env mit Keycloak-Werten fuellen (siehe README), dann erneut ausfuehren."
   exit 1
 }
 

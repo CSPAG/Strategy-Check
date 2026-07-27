@@ -7,19 +7,19 @@ Web-Applikation für Team-Selbsteinschätzungen zur **CSPstrategie 2026+** (Peri
 - **Selbsteinschätzung** pro Team (Factsheet, Reifegrad, Portfolio-Matrix, Strategie-Radar, 10 strategische Ziele)
 - **Factsheet** mit Drucken/PDF (Browser)
 - **GL-Dashboard** mit konsolidierter Matrix und Reifegrad-Heatmap
-- **Microsoft Login** (Entra ID)
+- **CSP-Login** über Keycloak (`iam.csp-ag.ai`)
 - UI auf **Deutsch**
 
 ## Voraussetzungen
 
 - Node.js 20+
-- Azure App-Registrierung (Entra ID)
+- Keycloak-Client in `https://iam.csp-ag.ai` (siehe unten)
 
-## Schnellstart Demo (ohne Login, ohne Azure)
+## Schnellstart Demo (ohne Login, ohne Keycloak)
 
-```powershell
-cd C:\dev\csp-strategy-assessment
-# .env enthält bereits DEMO_MODE=true
+```bash
+cd Strategy-Check
+# .env mit DEMO_MODE=true
 npm install
 npm run db:setup
 npm run dev
@@ -27,12 +27,31 @@ npm run dev
 
 Browser: **http://localhost:3000** — voller Zugriff als Demo-GL (alle Teams + Dashboard).
 
-## Installation mit Microsoft Login
+## Installation mit Keycloak-Login
+
+### 1. Keycloak-Client anlegen
+
+In der [Keycloak Admin Console](https://iam.csp-ag.ai/admin/) (Realm bestätigen, oft nicht `master`):
+
+1. Client erstellen, z. B. Client ID `strategy-check`
+2. Client authentication: **ON** (Confidential)
+3. Standard flow / Authorization Code: **ON**
+4. **Valid redirect URIs:**
+   - `http://localhost:3000/api/auth/callback/keycloak`
+   - `https://<produktions-host>/api/auth/callback/keycloak`
+5. **Valid post logout redirect URIs:** `http://localhost:3000/*` (+ Prod)
+6. **Web origins:** `http://localhost:3000` (+ Prod)
+7. Client Secret kopieren
+8. Scopes: `openid`, `profile`, `email`
+9. Rollenclaims im ID-Token/Userinfo aktivieren (siehe [`docs/keycloak-rollen.md`](docs/keycloak-rollen.md))
+
+Issuer-URL: `https://iam.csp-ag.ai/realms/<REALM>`
+
+### 2. App starten
 
 ```bash
-cd C:\dev\csp-strategy-assessment
-copy .env.example .env
-# DEMO_MODE=false setzen und Azure-Werte füllen
+cp .env.example .env
+# DEMO_MODE=false und Keycloak-Werte setzen
 npm install
 npm run db:setup
 npm run dev
@@ -44,15 +63,16 @@ App: http://localhost:3000
 
 | Variable | Beschreibung |
 |----------|--------------|
-| `AUTH_MICROSOFT_ENTRA_ID_ID` | Client ID der App-Registrierung |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Client Secret |
-| `AUTH_MICROSOFT_ENTRA_ID_TENANT_ID` | CSP Tenant ID |
+| `DEMO_MODE` | `true` = Login umgehen (nur lokal) |
+| `KEYCLOAK_CLIENT_ID` | Keycloak Client ID |
+| `KEYCLOAK_CLIENT_SECRET` | Keycloak Client Secret |
+| `KEYCLOAK_ISSUER` | Volle Issuer-URL, z. B. `https://iam.csp-ag.ai/realms/master` |
 | `AUTH_SECRET` | Zufälliger String (`openssl rand -base64 32`) |
 | `AUTH_URL` | Öffentliche URL der App |
+| `AUTH_DEBUG` | Optional: Auth.js-Debuglogs aktivieren |
 | `DATABASE_URL` | `file:./dev.db` (SQLite) oder SQL Server Connection String |
-| `GL_EMAILS` | Komma-getrennte E-Mails mit GL-Dashboard-Zugriff |
 
-**Redirect URI in Azure:** `https://<ihre-url>/api/auth/callback/microsoft-entra-id`
+**Redirect URI in Keycloak:** `https://<ihre-url>/api/auth/callback/keycloak`
 
 ## Deployment (CSP-Infrastruktur, ohne Docker)
 
@@ -69,8 +89,9 @@ In `prisma/schema.prisma` Provider auf `sqlserver` ändern und `DATABASE_URL` se
 
 ## Benutzer & Teams
 
-- Beim ersten Login wird der Benutzer in der Datenbank angelegt.
-- **GL-Zugriff:** E-Mail in `GL_EMAILS` oder Rolle `GL_VIEWER` in der DB.
+- Auth.js verwendet verschlüsselte JWT-Sessions mit acht Stunden Laufzeit; es gibt keinen DB-Session-Store.
+- Beim ersten serverseitigen Zugriff wird der Benutzer anhand der stabilen Keycloak-`sub` in der Datenbank angelegt.
+- **Rollen:** stammen ausschließlich aus Keycloak-Claims; `gl` wird zu `GL_VIEWER`, `admin` zu `ADMIN`, alle anderen authentifizierten Benutzer zu `TEAM_EDITOR`.
 - **Team-Zuordnung:** Feld `teamId` am User (z. B. via Prisma Studio oder SQL), damit Team-Editoren nur ihr Team bearbeiten.
 
 ```bash
