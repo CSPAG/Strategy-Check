@@ -2,15 +2,20 @@ import { auth } from "@/auth";
 import { isGlRole } from "@/lib/keycloak-roles";
 import { NextResponse } from "next/server";
 
-function getRequestOrigin(req: Request): string | null {
+function getRequestOrigin(req: Request): string {
   const forwardedHost = req.headers.get("x-forwarded-host");
   const host = forwardedHost ?? req.headers.get("host");
-  if (!host) return null;
+  if (!host) return req.nextUrl.origin;
 
   const forwardedProto = req.headers.get("x-forwarded-proto");
-  const protocol = forwardedProto?.split(",")[0]?.trim() || "https";
+  const protocol =
+    forwardedProto?.split(",")[0]?.trim() ||
+    req.nextUrl.protocol.replace(":", "") ||
+    "http";
   const origin = `${protocol}://${host}`;
-  return origin.startsWith("http://") || origin.startsWith("https://") ? origin : null;
+  return origin.startsWith("http://") || origin.startsWith("https://")
+    ? origin
+    : req.nextUrl.origin;
 }
 
 export default auth((req) => {
@@ -26,7 +31,9 @@ export default auth((req) => {
   const isLoginPage = pathname.startsWith("/login");
   const isAuthRoute = pathname.startsWith("/api/auth");
 
-  if (isAuthRoute) {
+  // Login und Auth-Routen dürfen ohne Session erreichbar sein — sonst entsteht
+  // ein Redirect-Loop (/login → /login?callbackUrl=/login → …).
+  if (isAuthRoute || (isLoginPage && !req.auth)) {
     return NextResponse.next();
   }
 
@@ -36,10 +43,9 @@ export default auth((req) => {
     }
 
     const origin =
-      getRequestOrigin(req) ??
       process.env.AUTH_URL ??
       process.env.NEXTAUTH_URL ??
-      req.nextUrl.origin;
+      getRequestOrigin(req);
     const login = new URL("/login", origin);
     login.searchParams.set("callbackUrl", `${pathname}${search}`);
     return NextResponse.redirect(login);

@@ -7,7 +7,9 @@ export default async function LoginPage({
 }) {
   const requestedCallback = (await searchParams).callbackUrl;
   const callbackUrl =
-    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
+    requestedCallback?.startsWith("/") &&
+    !requestedCallback.startsWith("//") &&
+    !requestedCallback.startsWith("/login")
       ? requestedCallback
       : "/";
 
