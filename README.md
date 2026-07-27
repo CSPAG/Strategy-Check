@@ -70,23 +70,24 @@ App: http://localhost:3000
 | `AUTH_SECRET` | Zufälliger String (`openssl rand -base64 32`) |
 | `AUTH_URL` | Öffentliche URL der App |
 | `AUTH_DEBUG` | Optional: Auth.js-Debuglogs aktivieren |
-| `DATABASE_URL` | `file:./dev.db` (SQLite) oder SQL Server Connection String |
+| `DATABASE_URL` | Postgres-Connection-String (Neon), inkl. `?sslmode=require` |
 
 **Redirect URI in Keycloak:** `https://<ihre-url>/api/auth/callback/keycloak`
 
-## Deployment (CSP-Infrastruktur, ohne Docker)
+## Deployment auf Vercel
 
-```bash
-npm run build
-npm start
-```
+1. Repo mit Vercel verbinden (`vercel link` / GitHub-Integration).
+2. Neon-Postgres anlegen und `DATABASE_URL` setzen.
+3. Env-Variablen in Vercel (Production + Preview) setzen: `DEMO_MODE`, Keycloak, `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST`, `DATABASE_URL`.
+4. Schema & Seed einmalig:
+   ```bash
+   npx prisma db push
+   npm run db:seed
+   ```
+5. In Keycloak Redirect/Web-Origins um die Vercel-URL ergänzen.
+6. Deploy: Push auf `main` oder `vercel --prod`.
 
-`next.config.ts` ist auf `output: "standalone"` gesetzt — der Ordner `.next/standalone` kann auf einem Windows-Server mit Node.js betrieben werden (z. B. hinter IIS als Reverse Proxy).
-
-### SQL Server (optional)
-
-In `prisma/schema.prisma` Provider auf `sqlserver` ändern und `DATABASE_URL` setzen, danach `npm run db:push`.
-
+Lokale SQLite-Datei (`prisma/dev.db`) wird nicht mehr verwendet.
 ## Benutzer & Teams
 
 - Auth.js verwendet verschlüsselte JWT-Sessions mit acht Stunden Laufzeit; es gibt keinen DB-Session-Store.
