@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PageTitle, Section } from "@/components/ui";
 import { ReminderPanel } from "@/components/admin/ReminderPanel";
 import { PeriodManager } from "@/components/admin/PeriodManager";
-import { AdminManager } from "@/components/admin/AdminManager";
+import { AdminManager, MakeAdminButton } from "@/components/admin/AdminManager";
 import { FIXED_ADMINS, normalizeEmail } from "@/lib/admins";
 import { sortPeriods } from "@/lib/period-scope";
 import { parsePeriodLabel } from "@/lib/period-labels";
@@ -117,8 +117,8 @@ async function Accounts({ me }: { me: string }) {
   const countBy = new Map(counts.map((c) => [c.userEmail, c._count._all]));
   const since = Date.now() - 30 * 86400000;
   const active = users.filter((u) => u.lastLoginAt && u.lastLoginAt.getTime() > since).length;
-  const userBy = new Map(users.map((u) => [u.email.toLowerCase(), u]));
-  const adminEmails = new Set<string>([...FIXED_ADMINS, ...grants.map((g) => g.email)]);
+  const userBy = new Map(users.map((u) => [normalizeEmail(u.email), u]));
+  const adminEmails = new Set<string>([...FIXED_ADMINS, ...grants.map((g) => g.email)].map(normalizeEmail));
   const admins = [
     ...FIXED_ADMINS.map((email) => ({ email, fixed: true, grantedBy: null as string | null })),
     ...grants.map((g) => ({ email: g.email, fixed: false, grantedBy: g.grantedBy })),
@@ -159,7 +159,14 @@ async function Accounts({ me }: { me: string }) {
                   <td className="py-2.5 pr-3 font-extrabold">{u.name ?? "–"}</td>
                   <td className="py-2.5 pr-3">{u.email}</td>
                   <td className="py-2.5 pr-3">
-                    {adminEmails.has(u.email.toLowerCase()) ? "Admin" : ROLE_LABEL[u.role === "ADMIN" ? "EDITOR" : u.role] ?? u.role}
+                    {adminEmails.has(normalizeEmail(u.email)) ? (
+                      "Admin"
+                    ) : (
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        {ROLE_LABEL[u.role === "ADMIN" ? "EDITOR" : u.role] ?? u.role}
+                        {!u.email.endsWith("@keycloak.local") && <MakeAdminButton email={u.email} />}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 pr-3 tabular-nums">{fmt(u.createdAt)}</td>
                   <td className="py-2.5 pr-3 tabular-nums">{fmt(u.lastLoginAt)}</td>

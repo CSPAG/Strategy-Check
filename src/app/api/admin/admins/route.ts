@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const schema = z.object({ email: z.string().email().max(200) });
+// Umlaute erlaubt (z. B. künzli) — gespeichert wird die normalisierte Form.
+const schema = z.object({
+  email: z.string().trim().max(200).refine((v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v), "Ungültige E-Mail"),
+});
 
 /** Admin ernennen (auch für Personen, die sich noch nie angemeldet haben). */
 export async function POST(req: Request) {

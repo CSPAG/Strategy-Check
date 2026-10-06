@@ -7,6 +7,7 @@ type SessionIdentity = {
   id: string;
   keycloakSub: string;
   email?: string | null;
+  username?: string | null;
   name?: string | null;
   image?: string | null;
   role: AppRole;
@@ -23,7 +24,9 @@ export async function ensureDbUser(
   if (!keycloakSub) return null;
 
   const email =
-    identity.email?.trim().toLowerCase() || `${keycloakSub}@keycloak.local`;
+    identity.email?.trim().toLowerCase() ||
+    (identity.username?.includes("@") ? identity.username.trim().toLowerCase() : "") ||
+    `${keycloakSub}@keycloak.local`;
   const name = identity.name?.trim() || email.split("@")[0] || "Benutzer";
 
   const bySubject = await prisma.user.findUnique({

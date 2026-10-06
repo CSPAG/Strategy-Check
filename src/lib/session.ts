@@ -29,25 +29,28 @@ export async function getSession(): Promise<Session | null> {
   const session = await auth();
   if (!session?.user) return null;
 
-  // Admin nur über die Admin-Liste des Tools, nie über Keycloak.
-  const baseRoles: AppRole[] = session.user.roles.filter((r) => r !== "ADMIN");
-  try {
-    if (await isAppAdmin(session.user.email)) baseRoles.push("ADMIN");
-  } catch (error) {
-    console.error("[auth:admin]", error);
-  }
-  session.user.roles = baseRoles.length ? baseRoles : ["VIEWER"];
-  session.user.role = primaryRole(session.user.roles);
-
+  let dbEmail: string | null = null;
   try {
     const user = await ensureDbUser(session.user);
     session.user.teamId = user?.teamId ?? null;
     session.user.teamName = user?.team?.name ?? null;
+    dbEmail = user?.email ?? null;
   } catch (error) {
     // Authentifizierung bleibt bei einem temporären DB-Problem gültig.
     // Fachliche Team-Zugriffe bleiben ohne teamId weiterhin gesperrt.
     console.error("[auth:provisioning]", error);
   }
+
+  // Admin nur über die Admin-Liste des Tools, nie über Keycloak. Geprüft werden E-Mail aus dem Token,
+  // gespeicherte Konto-Adresse und Keycloak-Benutzername (falls Keycloak keine E-Mail mitgibt).
+  const baseRoles: AppRole[] = session.user.roles.filter((r) => r !== "ADMIN");
+  try {
+    if (await isAppAdmin(session.user.email, dbEmail, session.user.username)) baseRoles.push("ADMIN");
+  } catch (error) {
+    console.error("[auth:admin]", error);
+  }
+  session.user.roles = baseRoles.length ? baseRoles : ["VIEWER"];
+  session.user.role = primaryRole(session.user.roles);
 
   return session;
 }

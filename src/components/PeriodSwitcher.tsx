@@ -34,7 +34,7 @@ export function PeriodSwitcher({
       <span className="sr-only">Periode</span>
       <span
         className={`pointer-events-none absolute left-3 inline-block h-[7px] w-[7px] rounded-full ${
-          past ? "bg-csp-gelb" : "bg-csp-gruen"
+          past ? "bg-csp-grau-titel" : "bg-csp-blau"
         }`}
       />
       <select
