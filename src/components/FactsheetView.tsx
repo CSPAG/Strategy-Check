@@ -1,200 +1,232 @@
 import {
+  MATURITY_INTRO,
   STRATEGIC_GOALS,
-  parseStrategicGoals,
-  getMaturityLabel,
+  SWOT_FIELDS,
   formatTeamCategory,
+  getStrategicGoalShortLabel,
+  parseStrategicGoals,
 } from "@/lib/constants";
 import { parseStrategicGoalMaturity } from "@/lib/strategic-maturity";
-import type { Assessment, Team, Period } from "@prisma/client";
+import { getOutlookPeriodLabel } from "@/lib/period-labels";
+import { CSP, categoryColor } from "@/lib/brand";
+import { GoalLegend, GoalProgress } from "@/components/charts/GoalProgress";
+import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
+import { StatusDot } from "@/components/ui";
+import type { Assessment, Measure, Team, Period } from "@prisma/client";
+import { MEASURE_AREA, MEASURE_STATUS, measureGaps, type MeasureStatus } from "@/lib/measure-labels";
 
 type AssessmentView = Assessment & {
   team: Team;
   period: Period;
   strategicGoalMaturity?: string;
   opportunities?: string;
+  measureItems?: Measure[];
 };
 
-type Props = {
-  assessment: AssessmentView;
-};
-
-export function FactsheetView({ assessment }: Props) {
+export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
   const goals = parseStrategicGoals(assessment.strategicGoals);
   const goalMaturity = parseStrategicGoalMaturity(assessment.strategicGoalMaturity ?? "{}");
-
   const selectedGoals = STRATEGIC_GOALS.filter((g) => goals.includes(g.id));
+  const category = formatTeamCategory(assessment.team.category);
+  const outlookPeriod = getOutlookPeriodLabel(assessment.period.label);
 
   return (
-    <article className="space-y-6 rounded-xl border bg-white p-8 shadow-sm print:shadow-none">
-      <header className="border-b pb-4">
-        <p className="text-sm text-csp-cyan">CSP Strategie 2026+ · Factsheet</p>
-        <h1 className="mt-1 text-2xl font-bold text-csp-navy">{assessment.team.name}</h1>
-        <p className="text-gray-600">
-          {assessment.period.label} · {formatTeamCategory(assessment.team.category)} · Status:{" "}
-          {assessment.status === "SUBMITTED" ? "Eingereicht" : "Entwurf"}
+    <article className="space-y-12">
+      <header>
+        <p className="kicker mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>CSPstrategie 2026+ · Factsheet</span>
+          <StatusDot status={assessment.status} />
         </p>
+        <h1 className="titel">
+          {assessment.team.name}.
+          <br />
+          <span className="text-csp-grau-titel">
+            {category} · {assessment.period.label}.
+          </span>
+        </h1>
       </header>
 
-      {selectedGoals.length > 0 && (
-        <section>
-          <h2 className="font-semibold text-csp-navy">Strategische Ziele (CSP 2026+)</h2>
-          <p className="mt-1 text-sm text-gray-500">Aktuell verfolgte strategische Ziele</p>
-          <ul className="mt-2 list-inside list-disc text-sm">
-            {selectedGoals.map((g) => (
-              <li key={g.id}>
-                <strong>{g.id}.</strong> {g.label}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section>
-        <h2 className="font-semibold text-csp-navy">Einschätzung Erreichung strategische Ziele</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Selbstdeklaration des aktuellen Stands Zielerreichung strategische Ziele (CSP 2026+) inkl.
-          Ausblick +6 Monate — je oben ausgewähltem strategischen Ziel muss eine Bewertung zwischen
-          1, nicht erreicht und 5, erreicht abgegeben werden.
-        </p>
+      <FactSection id="ziele" nr="01" title="Zielerreichung." sub={`${assessment.period.label} und Prognose ${outlookPeriod}.`}>
         {selectedGoals.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">Keine Ziele ausgewählt.</p>
+          <p className="nebentext">Keine Ziele ausgewählt.</p>
         ) : (
-          <ul className="mt-3 space-y-2">
-            {selectedGoals.map((g) => {
-              const m = goalMaturity[String(g.id)] ?? { today: 2, outlook: 2 };
-              return (
-                <li
-                  key={g.id}
-                  className="rounded-lg bg-csp-cyan/5 px-3 py-2 text-sm"
-                >
-                  <strong>Ziel {g.id}:</strong> {g.label}
-                  <br />
-                  <span className="text-gray-600">
-                    Heute: {getMaturityLabel(m.today)} · +6 Monate: {getMaturityLabel(m.outlook)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            <GoalProgress
+              rows={selectedGoals.map((g) => {
+                const m = goalMaturity[String(g.id)] ?? { today: 2, outlook: 2 };
+                return {
+                  key: String(g.id),
+                  title: getStrategicGoalShortLabel(g.id),
+                  fullTitle: g.label,
+                  period: assessment.period.label,
+                  today: m.today,
+                  outlook: m.outlook,
+                  meta: g.label,
+                };
+              })}
+            />
+            <GoalLegend />
+          </>
         )}
-        {assessment.maturityNotes && (
-          <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{assessment.maturityNotes}</p>
-        )}
-      </section>
+        {assessment.maturityNotes && <Prose label="Erläuterung und Hebel" text={assessment.maturityNotes} />}
+      </FactSection>
 
-      <section>
-        <h2 className="font-semibold text-csp-navy">SWOT Analyse</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Block title="Stärken (S)" text={assessment.strengths} />
-          <Block title="Schwächen (W)" text={assessment.gaps} />
-          <Block title="Chancen (O)" text={assessment.opportunities ?? ""} />
-          <Block title="Risiken / Bedrohungen (T)" text={assessment.risks} />
+      <FactSection id="swot" nr="02" title="SWOT-Analyse." sub="Innen und aussen.">
+        <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          {(Object.keys(SWOT_FIELDS) as (keyof typeof SWOT_FIELDS)[]).map((key, i) => (
+            <div key={key} id={`swot-${key}`} className="scroll-mt-6 rounded-xl target:bg-csp-gelb/15 target:ring-8 target:ring-csp-gelb/15">
+              <p className="label flex items-center gap-2">
+                <span
+                  className="inline-block h-[7px] w-[7px] rounded-full"
+                  style={{ background: [CSP.rot, CSP.gelb, CSP.gruen, CSP.blau][i] }}
+                />
+                {SWOT_FIELDS[key].label} ({SWOT_FIELDS[key].letter})
+              </p>
+              <p className="fliesstext whitespace-pre-wrap">
+                {(assessment[key] as string | undefined) || <span className="text-csp-grau-titel">—</span>}
+              </p>
+            </div>
+          ))}
         </div>
-        {assessment.measures && (
-          <div className="mt-4">
-            <h3 className="font-semibold text-csp-navy">Massnahmen</h3>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{assessment.measures}</p>
-          </div>
-        )}
-      </section>
+      </FactSection>
 
-      <section>
-        <h2 className="font-semibold text-csp-navy">Selbstdeklaration Reifegrad</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Selbstdeklaration Intern soll im Vergleich zu den anderen Circles bzgl. Kompetenzen
-          Personen, Rekrutierungsfähigkeit, Akquisekompetenz und Substanz vorgenommen werden. Die
-          Selbstdeklaration Markt soll im Vergleich zu den direkten Konkurrenten,
-          Marktattraktivität, Leistungsportfolio, Marktstellung und Marktanteile erfolgen.
-        </p>
-        <div className="mt-4">
-          <PositioningMatrix intern={assessment.matrixYToday} markt={assessment.matrixXToday} />
+      <FactSection id="massnahmen" nr="03" title="Massnahmen." sub="Wer macht was bis wann.">
+        <MeasureList items={assessment.measureItems ?? []} />
+        {assessment.measures && <Prose label="Weitere Massnahmen (Freitext)" text={assessment.measures} />}
+        {(assessment.measureItems ?? []).length === 0 && !assessment.measures && (
+          <p className="nebentext">Keine Massnahmen erfasst.</p>
+        )}
+      </FactSection>
+
+      <FactSection id="reifegrad" nr="04" title="Reifegrad." sub="Intern und Markt.">
+        <div className="grid gap-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] md:items-start">
+          <PositioningMatrix
+            points={[
+              {
+                id: assessment.id,
+                label: assessment.team.name,
+                x: assessment.matrixXToday,
+                y: assessment.matrixYToday,
+                color: categoryColor(category),
+                detail: assessment.period.label,
+              },
+            ]}
+          />
+          <div>
+            <div className="flex gap-10">
+              <Kennzahl wert={assessment.matrixYToday} was="Intern" />
+              <Kennzahl wert={assessment.matrixXToday} was="Markt" />
+            </div>
+            <p className="nebentext mt-6">{MATURITY_INTRO}</p>
+          </div>
         </div>
         {assessment.matrixNotes && (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold text-csp-navy">
-              Massnahmen zur Erhöhung des Reifegrads
-            </h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Welche Massnahmen trifft der Circle, um den internen und externen Reifegrad in einem
-              Jahr um mindestens einen Punkt zu erhöhen
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{assessment.matrixNotes}</p>
-          </div>
+          <Prose label="Massnahmen zur Erhöhung des Reifegrads (in einem Jahr mindestens +1)" text={assessment.matrixNotes} />
         )}
-      </section>
+      </FactSection>
 
-      <footer className="border-t pt-4 text-xs text-gray-400">
-        CSP AG · Strategie-Zyklus 2026–2028 · Generiert am{" "}
-        {new Date(assessment.updatedAt).toLocaleDateString("de-CH")}
+      <footer className="hidden items-center gap-3 border-t border-csp-linie pt-5 print:flex">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/branding/signet-punkte.svg" alt="" width={21} height={12} />
+        <span className="nebentext">
+          CSP AG · Strategie-Zyklus 2026–2028 · Stand{" "}
+          {new Date(assessment.updatedAt).toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}
+        </span>
       </footer>
     </article>
   );
 }
 
-function Block({ title, text }: { title: string; text: string }) {
-  if (!text) return null;
+function FactSection({
+  id,
+  nr,
+  title,
+  sub,
+  children,
+}: {
+  id: string;
+  nr: string;
+  title: string;
+  sub: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div>
-      <h3 className="font-semibold text-csp-navy">{title}</h3>
-      <p className="mt-1 whitespace-pre-wrap text-sm">{text}</p>
+    <section id={id} className="scroll-mt-6 break-inside-avoid">
+      <h2 className="zwischentitel mb-6 flex gap-4 border-b border-csp-ink pb-3">
+        <span className="text-csp-grau-titel">{nr}</span>
+        <span>
+          {title} <span className="text-csp-grau-titel">{sub}</span>
+        </span>
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function Prose({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="mt-8 max-w-3xl">
+      <p className="label">{label}</p>
+      <p className="fliesstext whitespace-pre-wrap">{text}</p>
     </div>
   );
 }
 
-function PositioningMatrix({
-  intern,
-  markt,
-}: {
-  intern: number;
-  markt: number;
-}) {
-  const size = 320;
-  const pad = 36;
-  const plot = size - pad * 2;
-  const toX = (v: number) => pad + ((v - 1) / 9) * plot;
-  const toY = (v: number) => pad + plot - ((v - 1) / 9) * plot;
-
+function Kennzahl({ wert, was }: { wert: number; was: string }) {
   return (
-    <div className="rounded-xl border bg-gray-50 p-3">
-      <svg viewBox={`0 0 ${size} ${size}`} className="h-auto w-full max-w-sm">
-        <rect x={pad} y={pad} width={plot} height={plot} fill="white" stroke="#cbd5e1" />
-        {[3, 5, 7, 9].map((i) => (
-          <g key={i}>
-            <line
-              x1={toX(i)}
-              y1={pad}
-              x2={toX(i)}
-              y2={pad + plot}
-              stroke="#e2e8f0"
-              strokeDasharray="3"
-            />
-            <line
-              x1={pad}
-              y1={toY(i)}
-              x2={pad + plot}
-              y2={toY(i)}
-              stroke="#e2e8f0"
-              strokeDasharray="3"
-            />
-          </g>
-        ))}
-        <text x={pad + plot / 2} y={size - 8} textAnchor="middle" className="fill-gray-600 text-[11px]">
-          Markt (X)
-        </text>
-        <text
-          x={12}
-          y={pad + plot / 2}
-          textAnchor="middle"
-          transform={`rotate(-90 12 ${pad + plot / 2})`}
-          className="fill-gray-600 text-[11px]"
-        >
-          Intern (Y)
-        </text>
-        <circle cx={toX(markt)} cy={toY(intern)} r={7} fill="#0093D3" />
-      </svg>
-      <p className="mt-2 text-xs text-gray-600">
-        Aktuelle Position: Intern {intern} / Markt {markt}
+    <div>
+      <p className="text-[56px] font-extrabold leading-none tracking-titel">
+        {wert}
+        <span className="text-[24px] text-csp-grau-titel"> / 10</span>
       </p>
+      <p className="mt-1 text-[13px] font-bold text-csp-grau">{was}</p>
     </div>
+  );
+}
+
+const STATUS_DOT: Record<MeasureStatus, string> = {
+  OFFEN: "bg-csp-linie",
+  IN_ARBEIT: "bg-csp-gelb",
+  ERLEDIGT: "bg-csp-gruen",
+  VERWORFEN: "bg-csp-grau-titel",
+};
+
+function MeasureList({ items }: { items: Measure[] }) {
+  if (items.length === 0) return null;
+  return (
+    <ol className="divide-y divide-csp-linie border-y border-csp-linie">
+      {items.map((m, i) => {
+        const gaps = measureGaps(m);
+        const status = m.status as MeasureStatus;
+        return (
+          <li key={m.id} id={`massnahme-${m.id}`} className="scroll-mt-6 target:bg-csp-gelb/15 grid gap-x-6 gap-y-2 py-4 md:grid-cols-[32px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <span className="text-[14px] font-extrabold text-csp-grau-titel">{String(i + 1).padStart(2, "0")}</span>
+            <div>
+              <p className="text-[15px] font-extrabold leading-snug">{m.title}</p>
+              <p className="mt-0.5 text-[12.5px] font-bold text-csp-grau">
+                {MEASURE_AREA[m.area as keyof typeof MEASURE_AREA] ?? m.area}
+                {" · "}
+                <span className="inline-flex items-center gap-1">
+                  <span className={`inline-block h-[7px] w-[7px] rounded-full ${gaps.length ? "bg-csp-gelb" : "bg-csp-gruen"}`} />
+                  {gaps.length ? `nicht überprüfbar (fehlt: ${gaps.join(", ")})` : "überprüfbar"}
+                </span>
+              </p>
+            </div>
+            <div className="text-[13.5px] font-semibold text-csp-text">
+              <span className="label mb-0 block text-[12px]">Erfolgskriterium</span>
+              {m.indicator || "–"}
+            </div>
+            <div className="text-[13.5px] font-semibold text-csp-text">
+              <span className="label mb-0 block text-[12px]">Verantwortung · Termin · Status</span>
+              {m.owner || "–"} · {m.dueDate ? new Date(m.dueDate).toLocaleDateString("de-CH") : "–"}
+              <span className="mt-0.5 flex items-center gap-1.5">
+                <span className={`inline-block h-[7px] w-[7px] rounded-full ${STATUS_DOT[status] ?? "bg-csp-linie"}`} />
+                {MEASURE_STATUS[status] ?? m.status}
+              </span>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

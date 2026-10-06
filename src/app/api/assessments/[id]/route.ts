@@ -7,6 +7,8 @@ import {
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { audit } from "@/lib/audit";
+import { measureInputSchema, syncMeasures } from "@/lib/measures";
 
 const assessmentSchema = z.object({
   status: z.enum(["DRAFT", "SUBMITTED"]).optional(),
@@ -22,6 +24,7 @@ const assessmentSchema = z.object({
   matrixNotes: z.string().optional(),
   strategicGoals: z.string().optional(),
   strategicGoalMaturity: z.string().optional(),
+  measureItems: z.array(measureInputSchema).max(60).optional(),
 });
 
 export async function GET(
@@ -36,7 +39,7 @@ export async function GET(
   const { id } = await params;
   const assessment = await prisma.assessment.findUnique({
     where: { id },
-    include: { team: true, period: true },
+    include: { team: true, period: true, measureItems: { orderBy: { sort: "asc" } } },
   });
 
   if (!assessment) {
@@ -62,7 +65,7 @@ export async function PATCH(
   const { id } = await params;
   const assessment = await prisma.assessment.findUnique({
     where: { id },
-    include: { team: true },
+    include: { team: true, period: true },
   });
 
   if (!assessment) {
@@ -75,7 +78,11 @@ export async function PATCH(
 
   if (isAssessmentReadOnly(session.user, assessment)) {
     return NextResponse.json(
-      { error: "Eingereichte Assessments können nur von Admins geändert werden" },
+      {
+        error: assessment.period.isActive
+          ? "Eingereichte Assessments können nur von Admins geändert werden"
+          : "Diese Periode ist abgeschlossen und nur noch für Admins bearbeitbar",
+      },
       { status: 403 }
     );
   }
@@ -86,8 +93,8 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const data = parsed.data;
-  const updated = await prisma.assessment.update({
+  const { measureItems, ...data } = parsed.data;
+  await prisma.assessment.update({
     where: { id },
     data: {
       ...data,
@@ -95,8 +102,18 @@ export async function PATCH(
         data.status === "SUBMITTED" ? new Date() : assessment.submittedAt,
       updatedBy: session.user.email ?? undefined,
     },
-    include: { team: true, period: true },
   });
+  if (measureItems) await syncMeasures(id, measureItems);
+
+  const updated = await prisma.assessment.findUniqueOrThrow({
+    where: { id },
+    include: { team: true, period: true, measureItems: { orderBy: { sort: "asc" } } },
+  });
+  await audit(
+    session.user,
+    data.status === "SUBMITTED" && assessment.status !== "SUBMITTED" ? "SUBMIT" : "SAVE",
+    `${updated.team.name} · ${updated.period.label}`
+  );
 
   return NextResponse.json(updated);
 }

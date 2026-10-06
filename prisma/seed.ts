@@ -63,7 +63,8 @@ async function main() {
   for (const period of PERIODS) {
     await prisma.period.upsert({
       where: { name: period.name },
-      update: { label: period.label, isActive: period.isActive },
+      // Status (offen/abgeschlossen) wird im Admin-Bereich verwaltet und beim Deploy nicht überschrieben.
+      update: { label: period.label },
       create: period,
     });
   }

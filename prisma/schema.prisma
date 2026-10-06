@@ -24,13 +24,15 @@ model User {
 }
 
 model Team {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  category    String
-  teamType    String       @default("CIR")
-  users       User[]
-  assessments Assessment[]
-  createdAt   DateTime     @default(now())
+  id           String       @id @default(cuid())
+  name         String       @unique
+  category     String
+  teamType     String       @default("CIR")
+  /// Kontaktadresse(n) für Erinnerungen, kommagetrennt
+  contactEmail String       @default("")
+  users        User[]
+  assessments  Assessment[]
+  createdAt    DateTime     @default(now())
 }
 
 model Period {
@@ -100,8 +102,57 @@ model Assessment {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  period Period @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  period       Period    @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  measureItems Measure[]
 
   @@unique([teamId, periodId])
+}
+
+/// Strukturierte, überprüfbare Massnahme (aus SWOT oder Reifegrad).
+model Measure {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  area         String     @default("SWOT") // SWOT | REIFEGRAD
+  title        String
+  indicator    String     @default("") // woran die Umsetzung überprüft wird
+  owner        String     @default("")
+  dueDate      DateTime?
+  status       String     @default("OFFEN") // OFFEN | IN_ARBEIT | ERLEDIGT | VERWORFEN
+  sort         Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([assessmentId])
+}
+
+/// Protokoll: Anmeldungen, Speichern, Einreichen, KI-Nutzung, Erinnerungen.
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userEmail String?
+  userName  String?
+  action    String
+  target    String?
+  detail    String   @default("")
+
+  @@index([createdAt])
+}
+
+/// Zwischengespeicherte KI-Auswertungen (z. B. SWOT-Themen pro Periode).
+model AiInsight {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  inputHash String
+  json      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Zusätzliche Admins des Tools (die festen Admins stehen in src/lib/admins.ts).
+model AdminGrant {
+  email     String   @id
+  grantedBy String?
+  createdAt DateTime @default(now())
 }

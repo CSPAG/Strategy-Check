@@ -93,7 +93,8 @@ Lokale SQLite-Datei (`prisma/dev.db`) wird nicht mehr verwendet.
 
 - Auth.js verwendet verschlüsselte JWT-Sessions mit acht Stunden Laufzeit; es gibt keinen DB-Session-Store.
 - Beim ersten serverseitigen Zugriff wird der Benutzer anhand der stabilen Keycloak-`sub` in der Datenbank angelegt.
-- **Rollen:** stammen ausschließlich aus Keycloak-Claims; `admin_ps` → `ADMIN` (Vollzugriff), `editor_ps` → `EDITOR` (alle Circles + Dashboard), `viewer` → `VIEWER` (Dashboard + nur lesen). Ohne bekannte Rolle: `VIEWER`.
+- **Rollen:** `editor_ps` (und `admin_ps`) → `EDITOR` (alle Circles + Dashboard), `viewer` → `VIEWER` (Dashboard + nur lesen). Ohne bekannte Rolle: `VIEWER`.
+- **Admins** vergibt nur das Tool: feste Admins in `src/lib/admins.ts`, weitere werden im Admin-Bereich ernannt (Tabelle `AdminGrant`). Für alle anderen ist `/admin` nicht sichtbar (404).
 - **Team-Zuordnung:** optional (`teamId`); für die Berechtigung nicht mehr nötig.
 
 ```bash

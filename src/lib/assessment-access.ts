@@ -4,7 +4,7 @@ import {
   canAccessDashboard,
 } from "@/lib/keycloak-roles";
 import type { AppRole } from "@/lib/keycloak-roles";
-import type { Assessment, Team } from "@prisma/client";
+import type { Assessment, Period, Team } from "@prisma/client";
 
 type SessionUser = {
   role?: AppRole;
@@ -27,9 +27,13 @@ export function canViewAssessment(
 
 export function isAssessmentReadOnly(
   user: SessionUser,
-  assessment: Assessment & { team: Team }
+  assessment: Assessment & { team: Team; period?: Period }
 ): boolean {
   if (!canEditAssessment(user, assessment)) return true;
+  // Abgeschlossene Perioden sind nur noch für Admins bearbeitbar.
+  if (assessment.period && !assessment.period.isActive && !canUnlockSubmitted(user.role)) {
+    return true;
+  }
   if (assessment.status === "SUBMITTED" && !canUnlockSubmitted(user.role)) {
     return true;
   }

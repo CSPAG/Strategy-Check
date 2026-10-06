@@ -14,29 +14,33 @@ export default async function LoginPage({
       : "/";
 
   return (
-    <div className="mx-auto max-w-md rounded-xl border bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-bold text-csp-navy">CSP Strategie Selbsteinschätzung</h1>
-      <p className="mt-2 text-sm text-gray-600">
+    <div className="mx-auto max-w-xl py-6 sm:py-12">
+      <p className="kicker mb-4">CSPstrategie 2026+</p>
+      <h1 className="titel">
+        Strategie-Check.
+        <br />
+        <span className="text-csp-grau-titel">Wo steht Ihr Team?</span>
+      </h1>
+      <p className="fliesstext mt-6">
         Melden Sie sich mit Ihrem CSP-Konto an, um die Selbsteinschätzung für Ihr Team
         durchzuführen.
       </p>
       <form
-        className="mt-6"
+        className="mt-8"
         action={async () => {
           "use server";
           await signIn("keycloak", { redirectTo: callbackUrl });
         }}
       >
-        <button
-          type="submit"
-          className="w-full rounded-md bg-csp-cyan px-4 py-3 font-medium text-white hover:opacity-90"
-        >
-          Mit CSP-Konto anmelden
+        <button type="submit" className="btn-primaer px-7 py-3.5 text-[15px]">
+          Mit CSP-Konto anmelden →
         </button>
       </form>
-      <p className="mt-4 text-xs text-gray-400">
-        Periode H2 2026 · CSPstrategie 2026+
-      </p>
+      <div className="mt-14 flex gap-2" aria-hidden>
+        {["bg-csp-rot", "bg-csp-gelb", "bg-csp-gruen", "bg-csp-blau"].map((c) => (
+          <span key={c} className={`h-3 w-3 rounded-full ${c}`} />
+        ))}
+      </div>
     </div>
   );
 }

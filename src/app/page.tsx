@@ -2,20 +2,21 @@ import { getSession } from "@/lib/session";
 import { canEditAnyAssessment, canAccessDashboard } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatTeamCategory } from "@/lib/constants";
+import { buildTeamColors, teamShapeClass } from "@/lib/team-colors";
+import { PageTitle, StatusDot } from "@/components/ui";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getPeriodScope } from "@/lib/period-scope";
 
 export default async function HomePage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
 
-  const periods = await prisma.period.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
+  const scope = await getPeriodScope();
+  const periods = scope.visible;
 
   if (periods.length === 0) {
-    return <p>Keine aktive Periode konfiguriert.</p>;
+    return <p className="nebentext">Keine aktive Periode konfiguriert.</p>;
   }
 
   const canEdit = canEditAnyAssessment(session.user.role);
@@ -28,6 +29,9 @@ export default async function HomePage() {
     orderBy: [{ period: { createdAt: "asc" } }, { team: { name: "asc" } }],
   });
 
+  const colors = buildTeamColors(
+    (await prisma.team.findMany()).map((t) => ({ ...t, category: formatTeamCategory(t.category) }))
+  );
   const byPeriod = periods.map((period) => ({
     period,
     items: assessments.filter((a) => a.periodId === period.id),
@@ -35,77 +39,75 @@ export default async function HomePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-csp-navy">Übersicht</h1>
-      <p className="mt-1 text-gray-600">
-        Selbsteinschätzung zur CSP-Strategie 2026+ für den Strategie-Check. Der Strategie-Check
-        ist für H1 2026 retrospektiv und für H2 2026 auszufüllen.
-      </p>
+      <PageTitle kicker="CSPstrategie 2026+" title="Strategie-Check." sub="Jedes Halbjahr, jedes Team.">
+        {scope.selected && !scope.selected.isActive ? (
+          <>
+            Rückblick auf die abgeschlossene Periode {scope.selected.label}. Zurück zur aktuellen Periode über den
+            Umschalter oben.
+          </>
+        ) : (
+          <>
+            Selbsteinschätzung zur CSPstrategie 2026+. Auszufüllen für{" "}
+            {periods.map((p) => p.label).join(" und ")}
+            {periods.some((p) => p.name === "H1-2026") ? " (H1 2026 retrospektiv)" : ""}.
+          </>
+        )}
+        {canDash && (
+          <span className="mt-6 block">
+            <Link href="/dashboard" className="btn-primaer">
+              Zum Dashboard →
+            </Link>
+          </span>
+        )}
+      </PageTitle>
 
-      <div className="mt-8 space-y-10">
-        {byPeriod.map(({ period, items }) => (
-          <section key={period.id}>
-            <h2 className="text-lg font-semibold text-csp-navy">
-              {period.label}
-              {period.name === "H1-2026" && (
-                <span className="ml-2 text-sm font-normal text-gray-500">(retrospektiv)</span>
-              )}
-            </h2>
-            <ul className="mt-3 space-y-3">
-              {items.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-4 shadow-sm"
-                >
-                  <div>
-                    <span className="font-semibold text-csp-navy">{a.team.name}</span>
-                    <span className="ml-2 text-xs text-gray-500">
-                      ({formatTeamCategory(a.team.category)})
-                    </span>
-                    <StatusBadge status={a.status} />
-                  </div>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/assessment/${a.id}`}
-                      className="rounded-md bg-csp-cyan px-3 py-1.5 text-sm text-white hover:opacity-90"
-                    >
-                      {canEdit && a.status !== "SUBMITTED"
-                        ? "Bearbeiten"
-                        : "Ansehen"}
-                    </Link>
-                    <Link
-                      href={`/factsheet/${a.id}`}
-                      className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
-                    >
-                      Factsheet
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+      <div className="grid gap-12 lg:grid-cols-2">
+        {byPeriod.map(({ period, items }) => {
+          const done = items.filter((a) => a.status === "SUBMITTED").length;
+          return (
+            <section key={period.id}>
+              <div className="flex items-baseline justify-between gap-4 border-b border-csp-ink pb-3">
+                <h2 className="zwischentitel">
+                  {period.label}.
+                  {period.name === "H1-2026" && period.isActive && (
+                    <span className="text-csp-grau-titel"> Retrospektiv.</span>
+                  )}
+                  {!period.isActive && <span className="text-csp-grau-titel"> Abgeschlossen.</span>}
+                </h2>
+                <span className="text-[13px] font-bold tabular-nums text-csp-grau">
+                  {done} / {items.length} eingereicht
+                </span>
+              </div>
+              <ul className="divide-y divide-csp-linie">
+                {items.map((a) => {
+                  const category = formatTeamCategory(a.team.category);
+                  return (
+                    <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`inline-block h-[9px] w-[9px] shrink-0 ${teamShapeClass(category)}`}
+                          style={{ background: colors[a.team.id] }}
+                          title={category}
+                        />
+                        <span className="truncate text-[15px] font-extrabold">{a.team.name}</span>
+                        <StatusDot status={a.status} />
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Link href={`/assessment/${a.id}`} className="btn-primaer px-4 py-1.5 text-[13px]">
+                          {canEdit && a.status !== "SUBMITTED" && period.isActive ? "Bearbeiten" : "Ansehen"}
+                        </Link>
+                        <Link href={`/factsheet/${a.id}`} className="btn-sekundaer px-4 py-1.5 text-[13px]">
+                          Factsheet
+                        </Link>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
       </div>
-
-      {canDash && (
-        <p className="mt-6">
-          <Link href="/dashboard" className="font-medium text-csp-cyan hover:underline">
-            → Zum Dashboard (Entwicklung pro Halbjahr)
-          </Link>
-        </p>
-      )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const submitted = status === "SUBMITTED";
-  return (
-    <span
-      className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-        submitted ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
-      }`}
-    >
-      {submitted ? "Eingereicht" : "Entwurf"}
-    </span>
   );
 }
