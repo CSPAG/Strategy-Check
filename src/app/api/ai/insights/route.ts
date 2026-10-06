@@ -5,7 +5,7 @@ import { computeInsight } from "@/lib/insights";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 /** Qualitative Auswertung einer Periode neu berechnen (Ergebnis wird gespeichert). */
 export async function POST(req: Request) {
