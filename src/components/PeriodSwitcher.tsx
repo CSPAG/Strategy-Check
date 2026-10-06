@@ -41,7 +41,7 @@ export function PeriodSwitcher({
         value={selectedId ?? ""}
         disabled={busy}
         onChange={(e) => change(e.target.value)}
-        className="appearance-none rounded-full bg-csp-sand/70 py-2 pl-7 pr-8 text-[13.5px] font-bold text-csp-ink hover:bg-csp-sand focus:outline-none focus:ring-2 focus:ring-csp-ink"
+        className="max-w-[10.5rem] appearance-none truncate rounded-full bg-csp-sand/70 py-2 pl-7 pr-8 text-[13.5px] font-bold sm:max-w-none text-csp-ink hover:bg-csp-sand focus:outline-none focus:ring-2 focus:ring-csp-ink"
         title="Periode wählen"
       >
         <option value="">Aktuell · {currentLabel}</option>

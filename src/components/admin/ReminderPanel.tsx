@@ -105,7 +105,21 @@ export function ReminderPanel({
         <table className="w-full min-w-[640px] text-left text-[13.5px]">
           <thead>
             <tr className="border-b border-csp-ink text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-csp-grau">
-              <th className="w-8 py-2" />
+              <th className="w-8 py-2">
+                <input
+                  type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = selected.size > 0 && selected.size < teams.length;
+                  }}
+                  checked={teams.length > 0 && selected.size === teams.length}
+                  onChange={() =>
+                    setSelected(selected.size === teams.length ? new Set() : new Set(teams.map((t) => t.id)))
+                  }
+                  className="h-4 w-4 accent-csp-ink"
+                  aria-label="Alle Teams auswählen oder abwählen"
+                  title="Alle auswählen / abwählen"
+                />
+              </th>
               <th className="py-2 pr-3">Team</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2">Kontakt für Erinnerungen</th>
