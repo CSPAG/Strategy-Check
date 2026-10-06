@@ -1,9 +1,14 @@
 "use client";
 
 import {
+  GOAL_SCALE_ENDS,
+  MATURITY_LEVELS,
   STRATEGIC_GOALS,
+  MATURITY_INTRO,
+  SWOT_FIELDS,
+  SWOT_INTRO,
+  getMaturityLabel,
   parseStrategicGoals,
-  formatTeamCategory,
 } from "@/lib/constants";
 import {
   parseStrategicGoalMaturity,
@@ -11,9 +16,18 @@ import {
   serializeStrategicGoalMaturity,
   updateGoalMaturity,
 } from "@/lib/strategic-maturity";
-import type { Assessment } from "@prisma/client";
-import type { Team, Period } from "@prisma/client";
+import { getOutlookPeriodLabel } from "@/lib/period-labels";
+import { categoryColor } from "@/lib/brand";
+import { formatTeamCategory } from "@/lib/constants";
+import type { Assessment, Measure, Team, Period } from "@prisma/client";
 import { toAssessmentPayload } from "@/lib/assessment-payload";
+import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
+import { Section } from "@/components/ui";
+import { AiTextButton } from "@/components/assessment/AiTextButton";
+import { SwotAi } from "@/components/assessment/SwotAi";
+import { MeasureEditor, type MeasureDraft } from "@/components/assessment/MeasureEditor";
+import { callAi } from "@/components/assessment/ai-client";
+import type { MeasureStatus } from "@/lib/measure-labels";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -22,55 +36,137 @@ type AssessmentWithMeta = Assessment & {
   period: Period;
   strategicGoalMaturity?: string;
   opportunities?: string;
+  measureItems?: Measure[];
 };
 
 type Props = {
   assessment: AssessmentWithMeta;
   readOnly?: boolean;
+  aiEnabled?: boolean;
 };
 
-function ScaleInput({
+function toDrafts(items: Measure[] | undefined): MeasureDraft[] {
+  return (items ?? []).map((m) => ({
+    key: m.id,
+    id: m.id,
+    area: m.area === "REIFEGRAD" ? "REIFEGRAD" : "SWOT",
+    title: m.title,
+    indicator: m.indicator,
+    owner: m.owner,
+    dueDate: m.dueDate ? new Date(m.dueDate).toISOString().slice(0, 10) : "",
+    status: m.status as MeasureStatus,
+  }));
+}
+
+/** Skala 1–5 mit Namen (Initial … Optimierend), damit Eingabe und Factsheet dieselbe Sprache sprechen. */
+function GoalScalePicker({
   label,
   value,
   onChange,
-  min = 1,
-  max = 5,
   disabled,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
-  min?: number;
-  max?: number;
   disabled?: boolean;
 }) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
-      <div className="mt-1 flex items-center gap-3">
-        <input
-          type="range"
-          min={min}
-          max={max}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="flex-1"
-        />
-        <span className="w-8 text-center font-semibold text-csp-cyan">{value}</span>
+    <div>
+      <p className="label mb-2">{label}</p>
+      <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label={label}>
+        {MATURITY_LEVELS.map((l) => {
+          const active = l.value === value;
+          return (
+            <button
+              key={l.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              title={l.description}
+              aria-label={`${l.value} ${l.label}`}
+              onClick={() => onChange(l.value)}
+              className={`rounded-2xl px-1 py-2.5 text-center transition disabled:cursor-not-allowed ${
+                active
+                  ? "bg-csp-ink text-white"
+                  : "bg-white text-csp-ink ring-1 ring-inset ring-csp-linie hover:ring-csp-ink disabled:hover:ring-csp-linie"
+              }`}
+            >
+              <span className="block text-[17px] font-extrabold leading-none">{l.value}</span>
+              <span
+                className={`mt-1 hidden truncate px-0.5 text-[10.5px] font-bold leading-tight sm:block ${
+                  active ? "text-white/75" : "text-csp-grau"
+                }`}
+              >
+                {l.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
-    </label>
+      <p className="mt-2 text-[12.5px] font-semibold text-csp-grau">
+        <span className="font-extrabold text-csp-ink">{getMaturityLabel(value)}:</span>{" "}
+        {MATURITY_LEVELS.find((l) => l.value === value)?.description}
+      </p>
+    </div>
   );
 }
 
-export function AssessmentForm({ assessment, readOnly = false }: Props) {
+/** Skala 1–10 für Intern / Markt. */
+function TenScalePicker({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <p className="label mb-2">
+        {label} <span className="text-csp-ink">{value}</span>
+      </p>
+      <div className="grid grid-cols-10 gap-1" role="radiogroup" aria-label={label}>
+        {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="radio"
+            aria-checked={v === value}
+            disabled={disabled}
+            onClick={() => onChange(v)}
+            className={`rounded-xl py-2 text-[14px] font-extrabold transition disabled:cursor-not-allowed ${
+              v === value
+                ? "bg-csp-ink text-white"
+                : "bg-white ring-1 ring-inset ring-csp-linie hover:ring-csp-ink disabled:hover:ring-csp-linie"
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[11px] font-bold text-csp-grau">
+        <span>tief</span>
+        <span>hoch</span>
+      </div>
+    </div>
+  );
+}
+
+export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false }: Props) {
   const router = useRouter();
   const [data, setData] = useState(assessment);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [measures, setMeasures] = useState<MeasureDraft[]>(() => toDrafts(assessment.measureItems));
 
   const goals = parseStrategicGoals(data.strategicGoals);
   const goalMaturity = parseStrategicGoalMaturity(data.strategicGoalMaturity ?? "{}");
+  const outlookPeriod = getOutlookPeriodLabel(data.period.label);
+  const category = formatTeamCategory(data.team.category);
 
   const update = (patch: Partial<AssessmentWithMeta>) =>
     setData((prev) => ({ ...prev, ...patch }));
@@ -98,86 +194,133 @@ export function AssessmentForm({ assessment, readOnly = false }: Props) {
       const res = await fetch(`/api/assessments/${data.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(toAssessmentPayload(data as Assessment, submit)),
+        body: JSON.stringify({
+          ...toAssessmentPayload(data as Assessment, submit),
+          measureItems: measures
+            .filter((m) => m.title.trim())
+            .map(({ id, area, title, indicator, owner, dueDate, status }) => ({
+              id,
+              area,
+              title,
+              indicator,
+              owner,
+              dueDate: dueDate || null,
+              status,
+            })),
+        }),
       });
-      if (!res.ok) throw new Error("Speichern fehlgeschlagen");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(typeof body?.error === "string" ? body.error : "Speichern fehlgeschlagen.");
+      }
       const updated = await res.json();
       setData(updated);
+      setMeasures(toDrafts(updated.measureItems));
       setMessage(submit ? "Eingereicht." : "Gespeichert.");
       router.refresh();
-    } catch {
-      setMessage("Fehler beim Speichern.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Fehler beim Speichern.");
     } finally {
       setSaving(false);
     }
   };
 
   const disabled = readOnly;
+  const showAi = aiEnabled && !disabled;
+
+  const requestSuggestions = (area: "SWOT" | "REIFEGRAD") => (existing: string[]) =>
+    callAi<{ measures: { title: string; indicator: string; dueInMonths: number; begruendung: string }[] }>(
+      "/api/ai/measures",
+      {
+        assessmentId: data.id,
+        area,
+        draft: {
+          strengths: data.strengths,
+          gaps: data.gaps,
+          opportunities: data.opportunities ?? "",
+          risks: data.risks,
+          maturityNotes: data.maturityNotes,
+          matrixNotes: data.matrixNotes,
+          intern: data.matrixYToday,
+          markt: data.matrixXToday,
+          goals: goals.map((id) => ({ id, ...(goalMaturity[String(id)] ?? { today: 2, outlook: 2 }) })),
+          existing,
+        },
+      }
+    );
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-csp-navy">Selbstdeklaration</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          {data.team.name} · {formatTeamCategory(data.team.category)} · {data.period.label}
-        </p>
-      </section>
-
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-csp-navy">Strategische Ziele (CSP 2026+)</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Ankreuzen, welche strategischen Ziele aktuell verfolgt werden
-        </p>
-        <div className="mt-4 space-y-2">
-          {STRATEGIC_GOALS.map((g) => (
-            <label key={g.id} className="flex cursor-pointer gap-2 rounded-md p-2 hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={goals.includes(g.id)}
-                disabled={disabled}
-                onChange={() => toggleGoal(g.id)}
-                className="mt-1"
-              />
-              <span className="text-sm">
-                <strong>{g.id}.</strong> {g.label}
-              </span>
-            </label>
-          ))}
+    <div className="space-y-6">
+      <Section
+        nr="01"
+        title="Strategische Ziele."
+        sub="Was aktuell verfolgt wird."
+        intro="Ankreuzen, welche der zehn Ziele der CSPstrategie 2026+ das Team aktuell verfolgt."
+      >
+        <div className="grid gap-2 md:grid-cols-2">
+          {STRATEGIC_GOALS.map((g) => {
+            const checked = goals.includes(g.id);
+            return (
+              <label
+                key={g.id}
+                className={`flex cursor-pointer gap-3 rounded-2xl p-4 transition ${
+                  checked ? "bg-white ring-2 ring-inset ring-csp-ink" : "bg-white/60 hover:bg-white"
+                } ${disabled ? "cursor-default" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => toggleGoal(g.id)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-csp-ink"
+                />
+                <span className="text-[14px] font-semibold leading-snug text-csp-text">
+                  <span className="font-extrabold text-csp-ink">{g.id}. {g.short}</span>
+                  <br />
+                  {g.label}
+                </span>
+              </label>
+            );
+          })}
         </div>
-      </section>
+      </Section>
 
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-csp-navy">
-          Einschätzung Erreichung strategische Ziele
-        </h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Selbstdeklaration des aktuellen Stands Zielerreichung strategische Ziele (CSP 2026+) inkl.
-          Ausblick +6 Monate — je oben ausgewähltem strategischen Ziel muss eine Bewertung zwischen
-          1, nicht erreicht und 5, erreicht abgegeben werden.
-        </p>
-
+      <Section
+        nr="02"
+        title="Zielerreichung."
+        sub="Heute und in sechs Monaten."
+        intro={
+          <>
+            Pro ausgewähltem Ziel den heutigen Stand ({data.period.label}) und die Prognose für{" "}
+            {outlookPeriod} einschätzen. Skala 1 = {GOAL_SCALE_ENDS.min} bis 5 = {GOAL_SCALE_ENDS.max};
+            die Stufen folgen dem Reifegradmodell (Mouse-over zeigt die Beschreibung).
+          </>
+        }
+      >
         {goals.length === 0 ? (
-          <p className="mt-4 rounded-md bg-amber-50 p-4 text-sm text-amber-900">
-            Bitte zuerst mindestens ein strategisches Ziel oben ankreuzen.
+          <p className="rounded-2xl bg-white p-4 text-[14px] font-bold">
+            <span className="mr-2 inline-block h-[7px] w-[7px] rounded-full bg-csp-gelb align-middle" />
+            Zuerst mindestens ein strategisches Ziel ankreuzen.
           </p>
         ) : (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-3">
             {STRATEGIC_GOALS.filter((g) => goals.includes(g.id)).map((g) => {
               const m = goalMaturity[String(g.id)] ?? { today: 2, outlook: 2 };
               return (
-                <div key={g.id} className="rounded-lg border border-csp-cyan/25 bg-white p-4">
-                  <p className="text-sm font-medium text-csp-navy">
-                    <strong>Ziel {g.id}:</strong> {g.label}
+                <div key={g.id} className="rounded-[22px] bg-white p-5">
+                  <p className="text-[15px] font-extrabold leading-snug">
+                    {g.id}. {g.short}
+                    <span className="block text-[13.5px] font-semibold text-csp-grau">{g.label}</span>
                   </p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <ScaleInput
-                      label="Heute"
+                  <div className="mt-4 grid gap-5 lg:grid-cols-2">
+                    <GoalScalePicker
+                      label={`Heute · ${data.period.label}`}
                       value={m.today}
                       onChange={(v) => setMaturity(g.id, "today", v)}
                       disabled={disabled}
                     />
-                    <ScaleInput
-                      label="+6 Monate"
+                    <GoalScalePicker
+                      label={`Prognose +6 Monate · ${outlookPeriod}`}
                       value={m.outlook}
                       onChange={(v) => setMaturity(g.id, "outlook", v)}
                       disabled={disabled}
@@ -190,175 +333,158 @@ export function AssessmentForm({ assessment, readOnly = false }: Props) {
         )}
 
         <TextArea
-          className="mt-4"
-          label="Erläuterung / Hebel zur Strategieentwicklung"
+          className="mt-6"
+          label="Erläuterung und Hebel zur Strategieentwicklung"
           value={data.maturityNotes}
           onChange={(v) => update({ maturityNotes: v })}
           disabled={disabled}
           rows={3}
         />
-      </section>
+        {showAi && (
+          <AiTextButton
+            label="Erläuterung und Hebel zur Strategieentwicklung"
+            text={data.maturityNotes}
+            team={data.team.name}
+            onApply={(v) => update({ maturityNotes: v })}
+          />
+        )}
+      </Section>
 
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-csp-navy">SWOT Analyse</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <TextArea
-            label="Stärken (S)"
-            value={data.strengths}
-            onChange={(v) => update({ strengths: v })}
-            disabled={disabled}
-            rows={4}
+      <Section nr="03" title="SWOT-Analyse." sub="Innen und aussen." intro={SWOT_INTRO}>
+        {showAi && (
+          <SwotAi
+            assessmentId={data.id}
+            values={{
+              strengths: data.strengths,
+              gaps: data.gaps,
+              opportunities: data.opportunities ?? "",
+              risks: data.risks,
+            }}
+            onApply={(patch) => update(patch)}
           />
-          <TextArea
-            label="Schwächen (W)"
-            value={data.gaps}
-            onChange={(v) => update({ gaps: v })}
-            disabled={disabled}
-            rows={4}
-          />
-          <TextArea
-            label="Chancen (O)"
-            value={data.opportunities ?? ""}
-            onChange={(v) => update({ opportunities: v })}
-            disabled={disabled}
-            rows={4}
-          />
-          <TextArea
-            label="Risiken / Bedrohungen (T)"
-            value={data.risks}
-            onChange={(v) => update({ risks: v })}
-            disabled={disabled}
-            rows={4}
-          />
-          <TextArea
-            label="Massnahmen"
-            value={data.measures}
-            onChange={(v) => update({ measures: v })}
-            disabled={disabled}
-            rows={5}
-            className="sm:col-span-2"
-          />
+        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(Object.keys(SWOT_FIELDS) as (keyof typeof SWOT_FIELDS)[]).map((key) => {
+            const f = SWOT_FIELDS[key];
+            return (
+              <TextArea
+                key={key}
+                label={`${f.label} (${f.letter})`}
+                placeholder={f.hint}
+                value={(data[key] as string | undefined) ?? ""}
+                onChange={(v) => update({ [key]: v } as Partial<AssessmentWithMeta>)}
+                disabled={disabled}
+                rows={4}
+              />
+            );
+          })}
         </div>
-      </section>
+        <div className="mt-8">
+          <p className="label mb-1">Massnahmen aus der SWOT</p>
+          <p className="nebentext mb-3">
+            Konkret und überprüfbar: Was wird getan, woran wird der Erfolg gemessen, wer ist verantwortlich, bis wann.
+          </p>
+          <MeasureEditor
+            area="SWOT"
+            measures={measures}
+            onChange={setMeasures}
+            disabled={disabled}
+            aiEnabled={aiEnabled}
+            requestSuggestions={requestSuggestions("SWOT")}
+          />
+          {data.measures && (
+            <TextArea
+              className="mt-5"
+              label="Weitere Massnahmen (Freitext aus früherer Version)"
+              value={data.measures}
+              onChange={(v) => update({ measures: v })}
+              disabled={disabled}
+              rows={3}
+            />
+          )}
+        </div>
+      </Section>
 
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-csp-navy">Selbstdeklaration Reifegrad</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Selbstdeklaration Intern soll im Vergleich zu den anderen Circles bzgl. Kompetenzen
-          Personen, Rekrutierungsfähigkeit, Akquisekompetenz und Substanz vorgenommen werden. Die
-          Selbstdeklaration Markt soll im Vergleich zu den direkten Konkurrenten,
-          Marktattraktivität, Leistungsportfolio, Marktstellung und Marktanteile erfolgen.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <ScaleInput
-            label="Intern (Y-Achse)"
-            value={data.matrixYToday}
-            onChange={(v) => update({ matrixYToday: v })}
-            min={1}
-            max={10}
-            disabled={disabled}
-          />
-          <ScaleInput
-            label="Markt (X-Achse)"
-            value={data.matrixXToday}
-            onChange={(v) => update({ matrixXToday: v })}
-            min={1}
-            max={10}
-            disabled={disabled}
-          />
+      <Section nr="04" title="Reifegrad." sub="Intern und Markt." intro={MATURITY_INTRO}>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+          <div className="space-y-6">
+            <TenScalePicker
+              label="Intern (Y-Achse)"
+              value={data.matrixYToday}
+              onChange={(v) => update({ matrixYToday: v })}
+              disabled={disabled}
+            />
+            <TenScalePicker
+              label="Markt (X-Achse)"
+              value={data.matrixXToday}
+              onChange={(v) => update({ matrixXToday: v })}
+              disabled={disabled}
+            />
+            {!disabled && (
+              <p className="nebentext">Oder direkt in der Matrix auf das passende Feld klicken.</p>
+            )}
+          </div>
+          <div className="rounded-[22px] bg-white p-4">
+            <PositioningMatrix
+              points={[
+                {
+                  id: data.id,
+                  label: data.team.name,
+                  x: data.matrixXToday,
+                  y: data.matrixYToday,
+                  color: categoryColor(category),
+                  detail: data.period.label,
+                },
+              ]}
+              onPick={disabled ? undefined : (x, y) => update({ matrixXToday: x, matrixYToday: y })}
+            />
+          </div>
         </div>
-        <div className="mt-4">
-          <PositioningMatrix intern={data.matrixYToday} markt={data.matrixXToday} />
+        <div className="mt-8">
+          <p className="label mb-1">
+            Welche Massnahmen trifft das Team, um den internen und externen Reifegrad in einem Jahr um mindestens
+            einen Punkt zu erhöhen?
+          </p>
+          <div className="mt-3">
+            <MeasureEditor
+              area="REIFEGRAD"
+              measures={measures}
+              onChange={setMeasures}
+              disabled={disabled}
+              aiEnabled={aiEnabled}
+              requestSuggestions={requestSuggestions("REIFEGRAD")}
+            />
+          </div>
         </div>
         <TextArea
-          className="mt-4"
-          label="Welche Massnahmen trifft der Circle, um den internen und externen Reifegrad in einem Jahr um mindestens einen Punkt zu erhöhen"
+          className="mt-6"
+          label="Erläuterung zum Reifegrad"
           value={data.matrixNotes}
           onChange={(v) => update({ matrixNotes: v })}
           disabled={disabled}
-          rows={4}
+          rows={3}
         />
-      </section>
+        {showAi && (
+          <AiTextButton
+            label="Erläuterung zum Reifegrad"
+            text={data.matrixNotes}
+            team={data.team.name}
+            onApply={(v) => update({ matrixNotes: v })}
+          />
+        )}
+      </Section>
 
       {!readOnly && (
-        <div className="no-print flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => save(false)}
-            disabled={saving || disabled}
-            className="rounded-md bg-gray-800 px-4 py-2 text-white hover:bg-gray-700 disabled:opacity-50"
-          >
+        <div className="no-print sticky bottom-4 z-30 flex flex-wrap items-center gap-3 rounded-full bg-white/95 p-2 shadow-[0_8px_30px_rgba(20,20,19,0.12)] ring-1 ring-csp-linie backdrop-blur sm:w-max">
+          <button type="button" onClick={() => save(false)} disabled={saving} className="btn-sekundaer">
             {saving ? "Speichern…" : "Entwurf speichern"}
           </button>
-          <button
-            type="button"
-            onClick={() => save(true)}
-            disabled={saving || disabled}
-            className="rounded-md bg-csp-cyan px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
-          >
+          <button type="button" onClick={() => save(true)} disabled={saving} className="btn-primaer">
             Einreichen
           </button>
-          {message && <p className="self-center text-sm text-gray-600">{message}</p>}
+          {message && <p className="px-3 text-[13px] font-bold text-csp-grau">{message}</p>}
         </div>
       )}
-    </div>
-  );
-}
-
-function PositioningMatrix({
-  intern,
-  markt,
-}: {
-  intern: number;
-  markt: number;
-}) {
-  const size = 320;
-  const pad = 36;
-  const plot = size - pad * 2;
-  const toX = (v: number) => pad + ((v - 1) / 9) * plot;
-  const toY = (v: number) => pad + plot - ((v - 1) / 9) * plot;
-
-  return (
-    <div className="rounded-xl border bg-gray-50 p-3">
-      <svg viewBox={`0 0 ${size} ${size}`} className="h-auto w-full max-w-sm">
-        <rect x={pad} y={pad} width={plot} height={plot} fill="white" stroke="#cbd5e1" />
-        {[3, 5, 7, 9].map((i) => (
-          <g key={i}>
-            <line
-              x1={toX(i)}
-              y1={pad}
-              x2={toX(i)}
-              y2={pad + plot}
-              stroke="#e2e8f0"
-              strokeDasharray="3"
-            />
-            <line
-              x1={pad}
-              y1={toY(i)}
-              x2={pad + plot}
-              y2={toY(i)}
-              stroke="#e2e8f0"
-              strokeDasharray="3"
-            />
-          </g>
-        ))}
-        <text x={pad + plot / 2} y={size - 8} textAnchor="middle" className="fill-gray-600 text-[11px]">
-          Markt (X)
-        </text>
-        <text
-          x={12}
-          y={pad + plot / 2}
-          textAnchor="middle"
-          transform={`rotate(-90 12 ${pad + plot / 2})`}
-          className="fill-gray-600 text-[11px]"
-        >
-          Intern (Y)
-        </text>
-        <circle cx={toX(markt)} cy={toY(intern)} r={7} fill="#0093D3" />
-      </svg>
-      <p className="mt-2 text-xs text-gray-600">
-        Aktuelle Position: Intern {intern} / Markt {markt}
-      </p>
     </div>
   );
 }
@@ -370,6 +496,7 @@ function TextArea({
   disabled,
   rows = 3,
   className = "",
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -377,14 +504,16 @@ function TextArea({
   disabled?: boolean;
   rows?: number;
   className?: string;
+  placeholder?: string;
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <span className="label mb-2 block">{label}</span>
       <textarea
-        className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+        className="eingabe"
         rows={rows}
         value={value}
+        placeholder={disabled ? undefined : placeholder}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />

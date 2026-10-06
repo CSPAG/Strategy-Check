@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "local": "bash scripts/local-demo/start.sh",
+    "local:reset": "bash scripts/local-demo/start.sh --reset",
     "dev": "next dev",
     "demo": "next dev",
     "build": "prisma generate && prisma db push && tsx prisma/seed.ts && next build",
@@ -15,15 +17,19 @@
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
+    "mammoth": "^1.13.0",
     "next": "^15.1.3",
     "next-auth": "^5.0.0-beta",
+    "nodemailer": "^8.0.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0",
+    "server-only": "^0.0.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",

@@ -1,9 +1,10 @@
 export type AppRole = "ADMIN" | "EDITOR" | "VIEWER";
 
 const ROLE_ALIASES: Record<string, AppRole> = {
-  admin_ps: "ADMIN",
-  admin: "ADMIN",
-  "strategy-check-admin": "ADMIN",
+  // Admin-Rechte vergibt nur das Tool (src/lib/admins.ts); Keycloak-Admins sind hier Editoren.
+  admin_ps: "EDITOR",
+  admin: "EDITOR",
+  "strategy-check-admin": "EDITOR",
   editor_ps: "EDITOR",
   employee: "EDITOR",
   team_editor: "EDITOR",

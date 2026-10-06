@@ -6,6 +6,44 @@ export const MATURITY_LEVELS = [
   { value: 5, label: "Optimierend", description: "Wiederverwendbare Bausteine, Firmenlernkurve" },
 ] as const;
 
+/** Skala Zielerreichung: 1 = nicht erreicht … 5 = erreicht, benannt nach dem Reifegradmodell. */
+export const GOAL_SCALE_ENDS = { min: "nicht erreicht", max: "erreicht" } as const;
+
+export const SWOT_FIELDS = {
+  strengths: {
+    label: "Stärken",
+    letter: "S",
+    hint: "Was können wir heute besser als andere? Kompetenzen, Referenzen, Kundenbeziehungen.",
+  },
+  gaps: {
+    label: "Schwächen",
+    letter: "W",
+    hint: "Wo fehlt uns heute etwas? Know-how, Kapazität, Angebot, Sichtbarkeit.",
+  },
+  opportunities: {
+    label: "Chancen",
+    letter: "O",
+    hint: "Welche Entwicklungen im Markt können wir nutzen? Nachfrage, Regulierung, Technologie.",
+  },
+  risks: {
+    label: "Risiken",
+    letter: "T",
+    hint: "Was von aussen gefährdet uns? Konkurrenz, Preisdruck, Abhängigkeiten, Fachkräftemangel.",
+  },
+} as const;
+
+export const SWOT_INTRO =
+  "Die SWOT-Analyse beschreibt die Ausgangslage des Teams mit Blick auf die CSPstrategie 2026+. " +
+  "Stärken und Schwächen schauen nach innen: was das Team heute kann – oder noch nicht. " +
+  "Chancen und Risiken schauen nach aussen: Markt, Kundschaft, Konkurrenz, Technologie. " +
+  "Drei bis fünf Stichworte pro Feld genügen; die Massnahmen leiten sich daraus ab.";
+
+export const MATURITY_INTRO =
+  "Intern: Einschätzung im Vergleich zu den anderen Circles bezüglich Kompetenzen der Personen, " +
+  "Rekrutierungsfähigkeit, Akquisekompetenz und Substanz. Markt: Einschätzung im Vergleich zu den " +
+  "direkten Konkurrenten bezüglich Marktattraktivität, Leistungsportfolio, Marktstellung und Marktanteilen. " +
+  "Skala 1 (tief) bis 10 (hoch).";
+
 export const STRATEGIC_GOALS = [
   {
     id: 1,

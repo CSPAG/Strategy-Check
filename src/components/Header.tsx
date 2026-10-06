@@ -3,30 +3,47 @@ import { isDemoMode } from "@/lib/demo-mode";
 import Link from "next/link";
 import { canAccessDashboard } from "@/lib/auth";
 import { CspLogo } from "@/components/CspLogo";
+import { PeriodSwitcher } from "@/components/PeriodSwitcher";
+import { getPeriodScope } from "@/lib/period-scope";
 
 export async function Header() {
   const session = await getSession();
   const demo = isDemoMode();
+  const scope = session?.user ? await getPeriodScope() : null;
 
   return (
-    <header className="border-b border-csp-cyan/20 bg-white shadow-sm no-print">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-3">
+    <header className="no-print border-b border-csp-linie bg-white">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-4">
           <CspLogo />
-          <span className="text-sm text-gray-600">Strategie-Check</span>
+          <span className="hidden border-l border-csp-linie pl-4 text-[14px] font-extrabold tracking-[-0.01em] sm:inline">
+            Strategie-Check
+          </span>
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex items-center gap-1 text-[14px] font-bold">
           {session?.user && (
             <>
-              <Link href="/" className="text-csp-cyan hover:opacity-80">
+              {scope && scope.all.length > 0 && (
+                <PeriodSwitcher
+                  periods={scope.all.map((p) => ({ id: p.id, label: p.label, isActive: p.isActive }))}
+                  selectedId={scope.selected?.id ?? null}
+                  currentLabel={scope.all.filter((p) => p.isActive).map((p) => p.label).join(" / ") || "–"}
+                />
+              )}
+              <Link href="/" className="rounded-full px-4 py-2 hover:bg-csp-sand">
                 Übersicht
               </Link>
               {canAccessDashboard(session.user.role) && (
-                <Link href="/dashboard" className="font-medium text-csp-cyan hover:opacity-80">
+                <Link href="/dashboard" className="rounded-full px-4 py-2 hover:bg-csp-sand">
                   Dashboard
                 </Link>
               )}
-              <span className="hidden text-gray-500 md:inline">
+              {session.user.role === "ADMIN" && (
+                <Link href="/admin" className="rounded-full px-4 py-2 hover:bg-csp-sand">
+                  Admin
+                </Link>
+              )}
+              <span className="hidden px-3 text-csp-grau md:inline">
                 {demo ? "Demo" : (session.user.teamName ?? session.user.email)}
               </span>
               {!demo && (
@@ -37,10 +54,7 @@ export async function Header() {
                     await signOut({ redirectTo: "/login" });
                   }}
                 >
-                  <button
-                    type="submit"
-                    className="rounded-md border border-csp-cyan/30 px-3 py-1.5 text-csp-cyan hover:bg-csp-cyan/5"
-                  >
+                  <button type="submit" className="btn-sekundaer ml-1 py-2">
                     Abmelden
                   </button>
                 </form>

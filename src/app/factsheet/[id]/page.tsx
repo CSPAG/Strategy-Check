@@ -5,6 +5,7 @@ import { FactsheetView } from "@/components/FactsheetView";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
+import { FactsheetPrint } from "@/components/FactsheetPrint";
 
 export default async function FactsheetPage({
   params,
@@ -17,7 +18,7 @@ export default async function FactsheetPage({
   const { id } = await params;
   const assessment = await prisma.assessment.findUnique({
     where: { id },
-    include: { team: true, period: true },
+    include: { team: true, period: true, measureItems: { orderBy: { sort: "asc" } } },
   });
 
   if (!assessment) notFound();
@@ -26,13 +27,16 @@ export default async function FactsheetPage({
 
   return (
     <>
-      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/" className="text-sm text-csp-cyan hover:underline">
-          ← Zurück
+      <div className="no-print mb-8 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/" className="text-[14px] font-bold text-csp-grau hover:text-csp-ink">
+          ← Übersicht
         </Link>
         <PrintButton />
       </div>
-      <FactsheetView assessment={assessment} />
+      <div className="nur-bildschirm">
+        <FactsheetView assessment={assessment} />
+      </div>
+      <FactsheetPrint assessment={assessment} />
     </>
   );
 }

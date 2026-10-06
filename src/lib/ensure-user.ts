@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { audit } from "@/lib/audit";
 import type { AppRole } from "@/lib/keycloak-roles";
 import type { User } from "@prisma/client";
 
@@ -57,6 +58,8 @@ export async function ensureDbUser(
       !existing.lastLoginAt ||
       Date.now() - existing.lastLoginAt.getTime() > 60 * 60 * 1000;
 
+    if (refreshLastLogin) await audit({ email, name }, "LOGIN");
+
     return prisma.user.update({
       where: { id: existing.id },
       data: {
@@ -74,6 +77,8 @@ export async function ensureDbUser(
       },
     });
   }
+
+  await audit({ email, name }, "LOGIN", undefined, "Erste Anmeldung");
 
   return prisma.user.create({
     data: {

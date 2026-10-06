@@ -67,6 +67,9 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  // /admin und /api/admin prüfen die Admin-Liste serverseitig (Datenbank) und antworten für alle
+  // anderen mit «nicht gefunden» bzw. 403.
+
   if (pathname.startsWith("/dashboard") && !canAccessDashboard(req.auth.user.role)) {
     return NextResponse.redirect(new URL("/", req.url));
   }

@@ -4,8 +4,58 @@
 
 @layer base {
   body {
-    @apply bg-white text-gray-900 antialiased;
+    @apply bg-white font-sans font-semibold text-csp-ink antialiased;
   }
+  ::selection {
+    @apply bg-csp-gelb/40;
+  }
+}
+
+@layer components {
+  /* Titelregel: erste Zeile schwarz (Aussage), zweite grau (Einordnung). */
+  .titel {
+    @apply text-[40px] font-extrabold leading-[0.98] tracking-titel sm:text-[52px];
+  }
+  .zwischentitel {
+    @apply text-[22px] font-extrabold leading-tight tracking-[-0.03em];
+  }
+  .label {
+    @apply text-[14px] font-extrabold tracking-[-0.01em] text-csp-grau;
+  }
+  .kicker {
+    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-csp-grau;
+  }
+  .fliesstext {
+    @apply text-[15px] font-semibold leading-[1.7] text-csp-text;
+  }
+  .nebentext {
+    @apply text-[13.5px] font-semibold leading-relaxed text-csp-grau;
+  }
+  .flaeche {
+    @apply rounded-[28px] bg-csp-sand/60 p-6 sm:p-8;
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[14px] font-bold transition disabled:opacity-40;
+  }
+  .btn-primaer {
+    @apply btn bg-csp-ink text-white hover:bg-csp-text;
+  }
+  .btn-sekundaer {
+    @apply btn bg-white text-csp-ink ring-1 ring-inset ring-csp-linie hover:ring-csp-ink;
+  }
+  .eingabe {
+    @apply w-full rounded-2xl border-0 bg-white px-4 py-3 text-[15px] font-semibold text-csp-ink ring-1 ring-inset ring-csp-linie placeholder:font-medium placeholder:text-csp-grau-titel focus:outline-none focus:ring-2 focus:ring-csp-ink disabled:bg-white/60;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Druck: Factsheet nach CSP-AG-Word-Vorlage (Offerten/Berichte).
+   Masse aus der Vorlage: Ränder oben 14 mm, rechts 19 mm, unten 24 mm, links 49 mm,
+   Fusszeile 7 mm vom Rand. Standard Verdana 9 pt, #0D0D0D, Einzug 20 mm, Abstand nach 8 pt.
+   Seitenränder und Fusszeile (@page) setzt FactsheetPrint.tsx, damit sie nur fürs Factsheet gelten.
+   --------------------------------------------------------------------------- */
+.druck {
+  display: none;
 }
 
 @media print {
@@ -14,5 +64,150 @@
   }
   body {
     background: white;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .nur-bildschirm {
+    display: none !important;
+  }
+
+  .druck {
+    display: block;
+    font-family: Verdana, Geneva, sans-serif;
+    font-size: 9pt;
+    font-weight: 400;
+    line-height: 12pt;
+    color: #0d0d0d;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .druck p {
+    margin: 0 0 8pt 20mm;
+  }
+  .druck strong {
+    font-weight: 700;
+  }
+
+  /* Titelseite (Berichtstitel 28 pt blau, Einzug 0) */
+  .druck-titelseite {
+    padding-top: 95mm;
+    break-after: page;
+  }
+  .druck .druck-berichtstitel {
+    font-size: 28pt;
+    line-height: 33pt;
+    font-weight: 400;
+    color: #0093d3;
+    margin: 0 0 22mm 0;
+  }
+  .druck .druck-untertitel2 {
+    font-size: 11pt;
+    line-height: 14pt;
+    font-weight: 400;
+    margin: 14pt 0 7pt 0;
+  }
+  .druck .druck-adresse {
+    margin: 0;
+    line-height: 12pt;
+  }
+  .druck .druck-abstand {
+    margin-top: 12pt;
+  }
+  .druck .druck-abstand-gross {
+    margin-top: 30pt;
+  }
+
+  /* Überschrift 1: neue Seite, 28 pt blau, Nummer hängend 20 mm, grosser Abstand danach */
+  .druck .druck-h1 {
+    break-before: page;
+    position: relative;
+    padding-left: 20mm;
+    margin: 0 0 99pt 0;
+    font-size: 28pt;
+    line-height: 33pt;
+    font-weight: 400;
+    color: #0093d3;
+  }
+  .druck .druck-h1::before {
+    content: attr(data-nr);
+    position: absolute;
+    left: 0;
+  }
+  /* Überschrift 2: 15 pt, 20 pt davor, 7 pt danach */
+  .druck .druck-h2 {
+    position: relative;
+    padding-left: 20mm;
+    margin: 20pt 0 7pt 0;
+    font-size: 15pt;
+    line-height: 18pt;
+    font-weight: 400;
+    break-after: avoid;
+  }
+  .druck .druck-h2::before {
+    content: attr(data-nr);
+    position: absolute;
+    left: 0;
+  }
+
+  /* Aufzählung: Einzug 27.5 mm, hängend 7.5 mm, 6 pt Abstand */
+  .druck .druck-aufzaehlung {
+    list-style: none;
+    margin: 0 0 8pt 0;
+    padding: 0;
+  }
+  .druck .druck-aufzaehlung li {
+    position: relative;
+    margin: 0 0 6pt 27.5mm;
+    padding-left: 0;
+  }
+  .druck .druck-aufzaehlung li::before {
+    content: "–";
+    position: absolute;
+    left: -7.5mm;
+    color: #0093d3;
+    font-weight: 700;
+  }
+
+  /* Tabellentitel 7.5 pt blau */
+  .druck .druck-tabellentitel {
+    font-size: 7.5pt;
+    line-height: 10pt;
+    color: #0093d3;
+    margin: 12pt 0 4pt 20mm;
+    break-after: avoid;
+  }
+  .druck .druck-tabelle {
+    margin: 0 0 12pt 20mm;
+    width: calc(100% - 20mm);
+    border-collapse: collapse;
+    font-size: 8pt;
+    line-height: 10.5pt;
+  }
+  .druck .druck-tabelle th {
+    text-align: left;
+    font-weight: 700;
+    border-bottom: 1pt solid #0093d3;
+    padding: 3pt 4pt 3pt 0;
+    vertical-align: bottom;
+  }
+  .druck .druck-tabelle td {
+    border-bottom: 0.5pt solid #bfbfbf;
+    padding: 4pt 4pt 4pt 0;
+    vertical-align: top;
+  }
+  .druck .druck-tabelle tr {
+    break-inside: avoid;
+  }
+  .druck .druck-klein {
+    font-size: 7pt;
+    color: #595959;
+  }
+  .druck .druck-abbildung {
+    margin: 0 0 12pt 20mm;
+    width: 90mm;
+    break-inside: avoid;
   }
 }

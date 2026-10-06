@@ -8,7 +8,7 @@ Die Anwendung liest Rollen ausschließlich aus dem validierten OIDC-Profil
 
 | Keycloak-Slug | App-Rolle | Zugriff |
 |---|---|---|
-| `admin_ps` | `ADMIN` | Vollzugriff: alle Circles/Teams bearbeiten (auch eingereichte), Dashboard, Factsheets |
+| `admin_ps` | `EDITOR` | Wie `editor_ps`. Admin-Rechte vergibt nicht Keycloak, sondern das Tool (feste Admins in `src/lib/admins.ts`, weitere im Admin-Bereich) |
 | `editor_ps` | `EDITOR` | Alle Circles/Teams bearbeiten, Dashboard, Factsheets |
 | `viewer` | `VIEWER` | Dashboard + Assessments/Factsheets nur lesen |
 
