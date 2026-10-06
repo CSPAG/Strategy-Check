@@ -15,7 +15,7 @@ type TeamRow = {
 type Draft = { team: string; to: string[]; subject: string; text: string };
 type Result =
   | { mode: "draft"; drafts: Draft[]; missing: string[] }
-  | { mode: "sent"; sent: string[]; failed: string[]; missing: string[] };
+  | { mode: "sent"; sent: string[]; failed: string[]; missing: string[]; error?: string };
 
 const DEFAULT_SUBJECT = "Erinnerung: Strategie-Check {periode} für {team}";
 const DEFAULT_BODY =
@@ -28,11 +28,13 @@ export function ReminderPanel({
   periodLabel,
   teams,
   mailConfigured,
+  mailLabel,
 }: {
   periodId: string;
   periodLabel: string;
   teams: TeamRow[];
   mailConfigured: boolean;
+  mailLabel: string | null;
 }) {
   const open = teams.filter((t) => t.status !== "SUBMITTED");
   const [selected, setSelected] = useState<Set<string>>(new Set(open.map((t) => t.id)));
@@ -44,6 +46,15 @@ export function ReminderPanel({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [testInfo, setTestInfo] = useState("");
+
+  const sendTest = async () => {
+    setTestInfo("Testmail wird gesendet…");
+    const res = await fetch("/api/admin/mail-test", { method: "POST" });
+    const json = await res.json().catch(() => ({}));
+    setTestInfo(res.ok ? `Testmail an ${json.to} gesendet. Bitte Posteingang prüfen.` : json.error ?? "Fehler");
+  };
 
   const saveContact = async (id: string) => {
     const res = await fetch(`/api/admin/teams/${id}`, {
@@ -86,8 +97,8 @@ export function ReminderPanel({
       <p className="nebentext">
         {open.length} von {teams.length} Teams haben {periodLabel} noch nicht eingereicht.{" "}
         {mailConfigured
-          ? "Versand per E-Mail an die hinterlegten Kontakte."
-          : "SMTP ist nicht konfiguriert — es werden Mail-Entwürfe für das eigene Mailprogramm erstellt."}
+          ? `Versand direkt aus dem Tool über ${mailLabel}: Jedes Team erhält eine eigene E-Mail an seine Kontaktadresse(n).`
+          : "Kein Mailversand konfiguriert — es werden Mail-Entwürfe für das eigene Mailprogramm erstellt."}
       </p>
 
       <div className="overflow-x-auto rounded-[22px] bg-white p-5">
@@ -152,11 +163,44 @@ export function ReminderPanel({
           <span className="label mb-2 block">Text · Platzhalter {"{team}"}, {"{periode}"}, {"{link}"}</span>
           <textarea className="eingabe" rows={7} value={body} onChange={(e) => setBody(e.target.value)} />
         </label>
-        <div>
-          <button type="button" className="btn-primaer" disabled={busy || selected.size === 0} onClick={send}>
-            {busy ? "Wird vorbereitet…" : `${mailConfigured ? "Erinnerung senden" : "Mail-Entwürfe erstellen"} (${selected.size})`}
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {mailConfigured && confirming ? (
+            <>
+              <span className="text-[14px] font-bold">
+                {selected.size} E-Mails jetzt versenden (eine pro Team)?
+              </span>
+              <button
+                type="button"
+                className="btn-primaer"
+                disabled={busy}
+                onClick={async () => {
+                  await send();
+                  setConfirming(false);
+                }}
+              >
+                {busy ? "Wird gesendet…" : "Ja, senden"}
+              </button>
+              <button type="button" className="btn-sekundaer" onClick={() => setConfirming(false)}>
+                Abbrechen
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn-primaer"
+              disabled={busy || selected.size === 0}
+              onClick={() => (mailConfigured ? setConfirming(true) : send())}
+            >
+              {busy ? "Wird vorbereitet…" : `${mailConfigured ? "Erinnerung senden" : "Mail-Entwürfe erstellen"} (${selected.size})`}
+            </button>
+          )}
+          {mailConfigured && !confirming && (
+            <button type="button" className="btn-sekundaer" onClick={sendTest}>
+              Testmail an mich
+            </button>
+          )}
         </div>
+        {testInfo && <p className="text-[13px] font-bold text-csp-grau">{testInfo}</p>}
         {error && <p className="text-[13px] font-bold text-csp-rot">{error}</p>}
       </div>
 
@@ -166,7 +210,13 @@ export function ReminderPanel({
             <span className="mr-2 inline-block h-[7px] w-[7px] rounded-full bg-csp-gruen" />
             Gesendet an: {result.sent.join(", ") || "–"}
           </p>
-          {result.failed.length > 0 && <p className="mt-1">Fehler bei: {result.failed.join(", ")}</p>}
+          {result.failed.length > 0 && (
+            <p className="mt-1">
+              <span className="mr-2 inline-block h-[7px] w-[7px] rounded-full bg-csp-rot" />
+              Fehler bei: {result.failed.join(", ")}
+              {result.error && <span className="block text-[13px] text-csp-grau">{result.error}</span>}
+            </p>
+          )}
           {result.missing.length > 0 && <p className="mt-1">Ohne Kontaktadresse: {result.missing.join(", ")}</p>}
         </div>
       )}

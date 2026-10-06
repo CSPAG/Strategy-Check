@@ -89,6 +89,21 @@ App: http://localhost:3000
 6. Deploy: Push auf `main` oder `vercel --prod`.
 
 Lokale SQLite-Datei (`prisma/dev.db`) wird nicht mehr verwendet.
+## E-Mail-Versand (Erinnerungen)
+
+Erinnerungen gehen direkt aus dem Tool (Admin → Erinnerungen): pro Team eine eigene E-Mail an die
+hinterlegte Kontaktadresse. «Testmail an mich» prüft die Konfiguration.
+
+**Microsoft 365 / Graph (empfohlen):**
+1. Absender-Postfach anlegen, z. B. Shared Mailbox `strategie-check@csp-ag.ch`.
+2. Entra ID → App-Registrierungen → Neue Registrierung «Strategie-Check Mail» (nur dieser Mandant).
+3. API-Berechtigungen → Microsoft Graph → **Anwendungsberechtigung** `Mail.Send` → Administratorzustimmung erteilen.
+4. Zertifikate & Geheimnisse → neuen geheimen Clientschlüssel erstellen.
+5. Empfohlen: Mit einer Exchange *Application Access Policy* die App auf das Absender-Postfach beschränken.
+6. In Vercel setzen: `MS_GRAPH_TENANT_ID`, `MS_GRAPH_CLIENT_ID`, `MS_GRAPH_CLIENT_SECRET`, `MAIL_FROM`, dann neu deployen.
+
+**SMTP (Alternative):** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`.
+
 ## Benutzer & Teams
 
 - Auth.js verwendet verschlüsselte JWT-Sessions mit acht Stunden Laufzeit; es gibt keinen DB-Session-Store.

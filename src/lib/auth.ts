@@ -110,6 +110,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           oidcProfile,
           typeof token.email === "string" ? token.email : undefined
         );
+        // Zeitpunkt der Anmeldung — damit jede neue Anmeldung genau einmal protokolliert wird.
+        token.loginAt = Date.now();
         // Ersatz-Kennung für die Admin-Prüfung, falls Keycloak keine E-Mail mitgibt.
         token.username =
           typeof oidcProfile.preferred_username === "string" ? oidcProfile.preferred_username : undefined;
@@ -131,6 +133,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.teamId = null;
       session.user.teamName = null;
       session.user.username = (token.username as string | undefined) ?? null;
+      session.user.loginAt = (token.loginAt as number | undefined) ?? null;
       session.user.name =
         (typeof token.name === "string" && token.name) ||
         session.user.email?.split("@")[0] ||

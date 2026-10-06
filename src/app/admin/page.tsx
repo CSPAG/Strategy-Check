@@ -9,8 +9,8 @@ import { AdminManager, MakeAdminButton } from "@/components/admin/AdminManager";
 import { FIXED_ADMINS, normalizeEmail } from "@/lib/admins";
 import { sortPeriods } from "@/lib/period-scope";
 import { parsePeriodLabel } from "@/lib/period-labels";
-import { AUDIT_ACTIONS, type AuditAction } from "@/lib/audit";
-import { isMailConfigured } from "@/lib/mailer";
+import { AUDIT_ACTIONS, auditOnce, type AuditAction } from "@/lib/audit";
+import { MAIL_TRANSPORT_LABEL, isMailConfigured, mailTransport } from "@/lib/mailer";
 import { isAiEnabled } from "@/lib/ai";
 import { formatTeamCategory } from "@/lib/constants";
 import { buildTeamColors, teamShapeClass } from "@/lib/team-colors";
@@ -38,6 +38,7 @@ export default async function AdminPage({
   if (session.user.role !== "ADMIN") notFound();
 
   const { tab = "perioden", aktion, periode } = await searchParams;
+  await auditOnce(session.user, "VIEW", "Admin-Bereich");
 
   return (
     <div className="space-y-8">
@@ -59,7 +60,11 @@ export default async function AdminPage({
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12.5px] font-bold text-csp-grau">
         <Status ok={isAiEnabled()} label={isAiEnabled() ? `KI aktiv (${process.env.OPENAI_MODEL || "gpt-5-mini"})` : "KI nicht konfiguriert"} />
-        <Status ok={isMailConfigured()} label={isMailConfigured() ? "E-Mail-Versand aktiv" : "E-Mail-Versand nicht konfiguriert (Entwürfe)"} />
+        <Status ok={isMailConfigured()} label={
+            mailTransport()
+              ? `E-Mail-Versand aktiv (${MAIL_TRANSPORT_LABEL[mailTransport()!]}, Absender ${process.env.MAIL_FROM})`
+              : "E-Mail-Versand nicht konfiguriert (Entwürfe)"
+          } />
       </div>
 
       {tab === "perioden" && <Periods />}
@@ -221,6 +226,7 @@ async function Reminders({ periode }: { periode?: string }) {
         periodId={period.id}
         periodLabel={period.label}
         mailConfigured={isMailConfigured()}
+        mailLabel={mailTransport() ? MAIL_TRANSPORT_LABEL[mailTransport()!] : null}
         teams={assessments.map((a) => ({
           id: a.team.id,
           name: a.team.name,
@@ -277,7 +283,7 @@ async function Protocol({ aktion }: { aktion?: string }) {
         ))}
       </div>
       {logs.length === 0 ? (
-        <p className="nebentext">Keine Einträge.</p>
+        <p className="nebentext">Noch keine Einträge. Protokolliert werden Anmeldungen, Seitenaufrufe (höchstens einmal pro 30 Minuten), Speichern, Einreichen, Massnahmen, KI-Nutzung, Erinnerungen und Admin-Aktionen.</p>
       ) : (
         <div className="overflow-x-auto rounded-[22px] bg-white p-5">
           <table className="w-full min-w-[720px] text-left text-[13px]">

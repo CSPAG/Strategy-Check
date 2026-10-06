@@ -8,6 +8,7 @@ type SessionIdentity = {
   keycloakSub: string;
   email?: string | null;
   username?: string | null;
+  loginAt?: number | null;
   name?: string | null;
   image?: string | null;
   role: AppRole;
@@ -57,11 +58,15 @@ export async function ensureDbUser(
             where: { email },
             select: { id: true },
           });
-    const refreshLastLogin =
+    // Neue Anmeldung = Login-Zeitpunkt aus dem Token liegt nach der zuletzt gespeicherten Anmeldung.
+    const newLogin =
       !existing.lastLoginAt ||
-      Date.now() - existing.lastLoginAt.getTime() > 60 * 60 * 1000;
+      (identity.loginAt
+        ? existing.lastLoginAt.getTime() < identity.loginAt
+        : Date.now() - existing.lastLoginAt.getTime() > 60 * 60 * 1000);
+    const refreshLastLogin = newLogin;
 
-    if (refreshLastLogin) await audit({ email, name }, "LOGIN");
+    if (newLogin) await audit({ email, name }, "LOGIN");
 
     return prisma.user.update({
       where: { id: existing.id },

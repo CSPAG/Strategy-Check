@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/session";
 import { canViewAssessment } from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
+import { auditOnce } from "@/lib/audit";
 import { FactsheetView } from "@/components/FactsheetView";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -24,6 +25,7 @@ export default async function FactsheetPage({
   if (!assessment) notFound();
 
   if (!canViewAssessment(session.user, assessment)) redirect("/");
+  await auditOnce(session.user, "VIEW", `${assessment.team.name} · ${assessment.period.label}`, "Factsheet");
 
   return (
     <>
