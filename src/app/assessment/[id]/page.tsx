@@ -5,6 +5,7 @@ import {
   isAssessmentReadOnly,
 } from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
+import { auditOnce } from "@/lib/audit";
 import { AssessmentForm } from "@/components/AssessmentForm";
 import { PageTitle } from "@/components/ui";
 import { isAiEnabled } from "@/lib/ai";
@@ -32,6 +33,7 @@ export default async function AssessmentPage({
     redirect("/");
   }
 
+  await auditOnce(session.user, "VIEW", `${assessment.team.name} · ${assessment.period.label}`, "Selbsteinschätzung");
   const readOnly = isAssessmentReadOnly(session.user, assessment);
   const canEdit = canEditAssessment(session.user, assessment);
 

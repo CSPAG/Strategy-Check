@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/api-guard";
 import { audit } from "@/lib/audit";
-import { isMailConfigured, sendMail } from "@/lib/mailer";
+import { isMailConfigured, renderMailHtml, sendMail } from "@/lib/mailer";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -55,15 +55,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ mode: "draft", drafts, missing });
   }
 
+  // Pro Team eine eigene Mail an dessen Kontaktadresse(n).
   const sent: string[] = [];
   const failed: string[] = [];
+  let lastError = "";
   for (const d of sendable) {
     try {
-      await sendMail({ to: d.to, subject: d.subject, text: d.text });
+      await sendMail({ to: d.to, subject: d.subject, text: d.text, html: renderMailHtml(d.text) });
       sent.push(d.team);
+      await audit(user, "REMINDER", d.team, `Gesendet an ${d.to.join(", ")}`);
     } catch (e) {
       console.error("[reminder]", d.team, e);
       failed.push(d.team);
+      lastError = e instanceof Error ? e.message : String(e);
     }
   }
   await audit(
@@ -74,5 +78,5 @@ export async function POST(req: Request) {
       missing.length ? ` · Ohne Kontakt: ${missing.join(", ")}` : ""
     }`
   );
-  return NextResponse.json({ mode: "sent", sent, failed, missing });
+  return NextResponse.json({ mode: "sent", sent, failed, missing, error: lastError || undefined });
 }

@@ -7,6 +7,7 @@ import { isAiEnabled } from "@/lib/ai";
 import { QualitativeInsights } from "@/components/dashboard/QualitativeInsights";
 import { MeasuresOverview } from "@/components/dashboard/MeasuresOverview";
 import { prisma } from "@/lib/prisma";
+import { auditOnce } from "@/lib/audit";
 import { getPeriodScope, labelsUntil } from "@/lib/period-scope";
 import { redirect } from "next/navigation";
 import { buildTeamTrends } from "@/lib/dashboard-data";
@@ -20,6 +21,7 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
   if (!canAccessDashboard(session.user.role)) redirect("/");
+  await auditOnce(session.user, "VIEW", "Dashboard");
 
   const scope = await getPeriodScope();
   const inScope = labelsUntil(scope);
