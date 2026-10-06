@@ -33,7 +33,7 @@ export const MAIL_TRANSPORT_LABEL: Record<MailTransport, string> = {
 
 /** Absenderadresse ohne Anzeigenamen («Name <a@b.ch>» → «a@b.ch»). */
 function senderAddress(): string {
-  const from = process.env.MAIL_FROM ?? "";
+  const from = (process.env.MAIL_FROM ?? "").trim();
   return from.match(/<([^>]+)>/)?.[1] ?? from.trim();
 }
 
@@ -46,21 +46,48 @@ export async function sendMail(mail: Mail): Promise<void> {
   throw new Error("Kein E-Mail-Versand konfiguriert.");
 }
 
+/** Env-Wert ohne mitkopierte Leerzeichen, Zeilenumbrüche oder Anführungszeichen. */
+function env(name: string): string {
+  return (process.env[name] ?? "").trim().replace(/^["']|["']$/g, "");
+}
+
+/**
+ * Hinweise zum hinterlegten Clientschlüssel, ohne ihn preiszugeben (für Fehlermeldungen im Admin).
+ * Ein Schlüssel-Wert aus Entra ID hat ~40 Zeichen; die Geheimnis-ID ist eine GUID (36 Zeichen mit Bindestrichen).
+ */
+export function describeClientSecret(): string {
+  const raw = process.env.MS_GRAPH_CLIENT_SECRET ?? "";
+  const v = env("MS_GRAPH_CLIENT_SECRET");
+  const parts = [`hinterlegt: ${v.length} Zeichen`];
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
+    parts.push("hat das Format einer Geheimnis-ID (GUID) — eingetragen werden muss der «Wert»");
+  } else if (v === env("MS_GRAPH_CLIENT_ID") || v === env("MS_GRAPH_TENANT_ID")) {
+    parts.push("ist identisch mit Client- bzw. Tenant-ID");
+  } else if (v.length < 30) {
+    parts.push("ungewöhnlich kurz für einen Schlüssel-Wert");
+  } else {
+    parts.push(`Format plausibel (beginnt mit «${v.slice(0, 3)}…»)`);
+  }
+  if (raw !== v) parts.push("enthielt Leerzeichen/Zeilenumbruch, wurde bereinigt");
+  return parts.join(", ");
+}
+
 async function graphToken(): Promise<string> {
-  const e = process.env;
-  const res = await fetch(`https://login.microsoftonline.com/${e.MS_GRAPH_TENANT_ID}/oauth2/v2.0/token`, {
+  const res = await fetch(`https://login.microsoftonline.com/${env("MS_GRAPH_TENANT_ID")}/oauth2/v2.0/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: e.MS_GRAPH_CLIENT_ID!,
-      client_secret: e.MS_GRAPH_CLIENT_SECRET!,
+      client_id: env("MS_GRAPH_CLIENT_ID"),
+      client_secret: env("MS_GRAPH_CLIENT_SECRET"),
       scope: "https://graph.microsoft.com/.default",
       grant_type: "client_credentials",
     }),
   });
   const json = await res.json().catch(() => null);
   if (!res.ok || !json?.access_token) {
-    throw new Error(`Microsoft-Anmeldung fehlgeschlagen: ${json?.error_description?.split("\r")[0] ?? res.status}`);
+    const code = (json?.error_codes?.[0] as number | undefined) ?? 0;
+    const hint = code === 7000215 || code === 7000222 ? ` — Schlüssel ${describeClientSecret()}.` : "";
+    throw new Error(`Microsoft-Anmeldung fehlgeschlagen: ${json?.error_description?.split("\r")[0] ?? res.status}${hint}`);
   }
   return json.access_token as string;
 }
