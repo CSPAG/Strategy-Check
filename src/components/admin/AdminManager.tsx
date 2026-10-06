@@ -83,3 +83,28 @@ export function AdminManager({ admins, me }: { admins: AdminRow[]; me: string })
     </div>
   );
 }
+
+/** Kleiner Knopf in der Kontenliste: genau diese gespeicherte Adresse zum Admin machen. */
+export function MakeAdminButton({ email }: { email: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      className="rounded-full px-2.5 py-0.5 text-[12px] font-bold text-csp-grau ring-1 ring-inset ring-csp-linie hover:text-csp-ink hover:ring-csp-ink"
+      onClick={async () => {
+        setBusy(true);
+        await fetch("/api/admin/admins", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        setBusy(false);
+        router.refresh();
+      }}
+    >
+      {busy ? "…" : "Admin ernennen"}
+    </button>
+  );
+}

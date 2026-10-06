@@ -52,7 +52,7 @@ export default async function AssessmentPage({
       >
         {readOnly && canEdit && assessment.period.isActive && assessment.status === "SUBMITTED" && (
           <span className="flex items-center gap-2">
-            <span className="inline-block h-[7px] w-[7px] rounded-full bg-csp-gelb" />
+            <span className="inline-block h-[7px] w-[7px] rounded-full bg-csp-blau" />
             Eingereicht — nur Admins können weiter bearbeiten.
           </span>
         )}

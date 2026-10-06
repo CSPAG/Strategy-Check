@@ -37,8 +37,8 @@ export default async function LoginPage({
         </button>
       </form>
       <div className="mt-14 flex gap-2" aria-hidden>
-        {["bg-csp-rot", "bg-csp-gelb", "bg-csp-gruen", "bg-csp-blau"].map((c) => (
-          <span key={c} className={`h-3 w-3 rounded-full ${c}`} />
+        {["a", "b", "c", "d"].map((c) => (
+          <span key={c} className="h-3 w-3 rounded-full bg-csp-blau" />
         ))}
       </div>
     </div>

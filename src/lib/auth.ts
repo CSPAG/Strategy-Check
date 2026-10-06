@@ -110,6 +110,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           oidcProfile,
           typeof token.email === "string" ? token.email : undefined
         );
+        // Ersatz-Kennung für die Admin-Prüfung, falls Keycloak keine E-Mail mitgibt.
+        token.username =
+          typeof oidcProfile.preferred_username === "string" ? oidcProfile.preferred_username : undefined;
+        if (!token.email && typeof oidcProfile.email === "string") token.email = oidcProfile.email;
       }
 
       const roles = normalizeAppRoles(token.roles as AppRole[] | undefined);
@@ -126,6 +130,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = primaryRole(session.user.roles);
       session.user.teamId = null;
       session.user.teamName = null;
+      session.user.username = (token.username as string | undefined) ?? null;
       session.user.name =
         (typeof token.name === "string" && token.name) ||
         session.user.email?.split("@")[0] ||

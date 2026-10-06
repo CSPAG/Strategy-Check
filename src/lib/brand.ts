@@ -12,9 +12,9 @@ export const CSP = {
   blau: "#0093D3",
 } as const;
 
-/** Feste Bedeutung: Circles blau, Units gelb — im ganzen Tool gleich. */
+/** Feste Bedeutung: Circles blau, Units dunkelblau — im ganzen Tool gleich. */
 export function categoryColor(category: string): string {
-  return category === "Unit" ? CSP.gelb : CSP.blau;
+  return category === "Unit" ? "#00577D" : CSP.blau;
 }
 
 /** Entwicklung: hoch = grün, runter = rot, gleich = grau. */

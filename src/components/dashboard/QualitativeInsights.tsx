@@ -9,9 +9,9 @@ import { teamShapeClass } from "@/lib/team-colors";
 import { useState } from "react";
 
 const CATEGORIES = [
-  { key: "strengths", label: "Stärken", color: "bg-csp-rot" },
-  { key: "gaps", label: "Schwächen", color: "bg-csp-gelb" },
-  { key: "opportunities", label: "Chancen", color: "bg-csp-gruen" },
+  { key: "strengths", label: "Stärken", color: "bg-csp-blau" },
+  { key: "gaps", label: "Schwächen", color: "bg-csp-blau" },
+  { key: "opportunities", label: "Chancen", color: "bg-csp-blau" },
   { key: "risks", label: "Risiken", color: "bg-csp-blau" },
 ] as const;
 type SwotKey = (typeof CATEGORIES)[number]["key"];

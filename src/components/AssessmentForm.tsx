@@ -299,7 +299,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
       >
         {goals.length === 0 ? (
           <p className="rounded-2xl bg-white p-4 text-[14px] font-bold">
-            <span className="mr-2 inline-block h-[7px] w-[7px] rounded-full bg-csp-gelb align-middle" />
+            <span className="mr-2 inline-block h-[7px] w-[7px] rounded-full bg-csp-blau align-middle" />
             Zuerst mindestens ein strategisches Ziel ankreuzen.
           </p>
         ) : (

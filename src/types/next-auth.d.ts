@@ -11,6 +11,7 @@ declare module "next-auth" {
       role: AppRole;
       teamId: string | null;
       teamName: string | null;
+      username?: string | null;
     };
   }
 }
@@ -21,5 +22,6 @@ declare module "next-auth/jwt" {
     keycloakIssuer?: string;
     roles?: AppRole[];
     role?: AppRole;
+    username?: string;
   }
 }

@@ -73,12 +73,12 @@ export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
 
       <FactSection id="swot" nr="02" title="SWOT-Analyse." sub="Innen und aussen.">
         <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-          {(Object.keys(SWOT_FIELDS) as (keyof typeof SWOT_FIELDS)[]).map((key, i) => (
-            <div key={key} id={`swot-${key}`} className="scroll-mt-6 rounded-xl target:bg-csp-gelb/15 target:ring-8 target:ring-csp-gelb/15">
+          {(Object.keys(SWOT_FIELDS) as (keyof typeof SWOT_FIELDS)[]).map((key) => (
+            <div key={key} id={`swot-${key}`} className="scroll-mt-6 rounded-xl target:bg-csp-blau/10 target:ring-8 target:ring-csp-blau/10">
               <p className="label flex items-center gap-2">
                 <span
                   className="inline-block h-[7px] w-[7px] rounded-full"
-                  style={{ background: [CSP.rot, CSP.gelb, CSP.gruen, CSP.blau][i] }}
+                  style={{ background: CSP.blau }}
                 />
                 {SWOT_FIELDS[key].label} ({SWOT_FIELDS[key].letter})
               </p>
@@ -199,7 +199,7 @@ function MeasureList({ items }: { items: Measure[] }) {
         const gaps = measureGaps(m);
         const status = m.status as MeasureStatus;
         return (
-          <li key={m.id} id={`massnahme-${m.id}`} className="scroll-mt-6 target:bg-csp-gelb/15 grid gap-x-6 gap-y-2 py-4 md:grid-cols-[32px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <li key={m.id} id={`massnahme-${m.id}`} className="scroll-mt-6 target:bg-csp-blau/10 grid gap-x-6 gap-y-2 py-4 md:grid-cols-[32px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <span className="text-[14px] font-extrabold text-csp-grau-titel">{String(i + 1).padStart(2, "0")}</span>
             <div>
               <p className="text-[15px] font-extrabold leading-snug">{m.title}</p>
