@@ -26,12 +26,21 @@ const STATUS_DOT: Record<MeasureStatus, string> = {
 };
 
 /** Alle Massnahmen pro Circle / Unit mit Überprüfbarkeit, Termin und Status (Status direkt nachführbar). */
-export function MeasuresOverview({ teams, canEdit }: { teams: TeamTrend[]; canEdit: boolean }) {
+export function MeasuresOverview({
+  teams,
+  canEdit,
+  currentPeriods = [],
+}: {
+  teams: TeamTrend[];
+  canEdit: boolean;
+  /** Offene Perioden — Standardauswahl «Aktuelle Perioden». */
+  currentPeriods?: string[];
+}) {
   const periods = useMemo(
     () => Array.from(new Set(teams.flatMap((t) => t.snapshots.map((s) => s.period)))),
     [teams]
   );
-  const [period, setPeriod] = useState<string>("Alle");
+  const [period, setPeriod] = useState<string>(currentPeriods.length ? "Aktuell" : "Alle");
   const [onlyAction, setOnlyAction] = useState(false);
   const [statusOverride, setStatusOverride] = useState<Record<string, MeasureStatus>>({});
   const [error, setError] = useState("");
@@ -39,7 +48,9 @@ export function MeasuresOverview({ teams, canEdit }: { teams: TeamTrend[]; canEd
   const today = new Date().toISOString().slice(0, 10);
   const rows: Row[] = teams.flatMap((team) =>
     team.snapshots
-      .filter((s) => period === "Alle" || s.period === period)
+      .filter(
+        (s) => period === "Alle" || (period === "Aktuell" ? currentPeriods.includes(s.period) : s.period === period)
+      )
       .flatMap((s) => [
         ...s.measures.map((m) => ({
           ...m,
@@ -107,7 +118,7 @@ export function MeasuresOverview({ teams, canEdit }: { teams: TeamTrend[]; canEd
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-full bg-white p-1 ring-1 ring-inset ring-csp-linie">
-          {["Alle", ...periods].map((p) => (
+          {[...(currentPeriods.length ? ["Aktuell"] : []), "Alle", ...periods].map((p) => (
             <button
               key={p}
               type="button"
@@ -116,7 +127,7 @@ export function MeasuresOverview({ teams, canEdit }: { teams: TeamTrend[]; canEd
                 p === period ? "bg-csp-ink text-white" : "text-csp-grau hover:text-csp-ink"
               }`}
             >
-              {p === "Alle" ? "Alle Perioden" : p}
+              {p === "Aktuell" ? `Aktuell · ${currentPeriods.join(" / ")}` : p === "Alle" ? "Alle Perioden" : p}
             </button>
           ))}
         </div>
