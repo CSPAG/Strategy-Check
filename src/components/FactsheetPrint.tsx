@@ -107,7 +107,25 @@ export function FactsheetPrint({ assessment, context }: Props) {
       </section>
 
       {/* 1 Zielerreichung */}
+      {/* Management Summary (KI) */}
+      <h1 className="druck-h1" data-nr="">Management Summary</h1>
+      {summary ? (
+        <>
+          <p>{summary.managementSummary}</p>
+          <h2 className="druck-h2" data-nr="">Kernpunkte</h2>
+          <Bullets items={summary.kernpunkte} />
+          <h2 className="druck-h2" data-nr="">Empfehlungen</h2>
+          <Bullets items={summary.empfehlungen} />
+          <p className="druck-klein">
+            KI-generiert (OpenAI) auf Basis dieser Abgabe und der Vorperiode — zur Diskussion, nicht als Bewertung.
+          </p>
+        </>
+      ) : (
+        <p>Für diese Abgabe liegt noch keine KI-Auswertung vor. Sie entsteht automatisch beim Einreichen.</p>
+      )}
+
       <h1 className="druck-h1" data-nr="1">Zielerreichung</h1>
+      <KiNote text={summary?.kapitel.ziele} />
       <p>
         Selbsteinschätzung des Stands der strategischen Ziele (CSPstrategie 2026+) in der Periode {period} und
         Prognose für {outlook}. Skala 1 (nicht erreicht) bis 5 (erreicht), benannt nach dem Reifegradmodell.
@@ -184,6 +202,7 @@ export function FactsheetPrint({ assessment, context }: Props) {
 
       {/* 2 SWOT */}
       <h1 className="druck-h1" data-nr="2">SWOT-Analyse</h1>
+      <KiNote text={summary?.kapitel.swot} />
       <p>
         Stärken und Schwächen beschreiben die Lage im Team, Chancen und Risiken das Umfeld (Markt, Kundschaft,
         Konkurrenz, Technologie).
@@ -210,6 +229,7 @@ export function FactsheetPrint({ assessment, context }: Props) {
 
       {/* 3 Massnahmen */}
       <h1 className="druck-h1" data-nr="3">Massnahmen</h1>
+      <KiNote text={summary?.kapitel.massnahmen} />
       <p>
         Massnahmen aus SWOT-Analyse und Reifegrad. Überprüfbar ist eine Massnahme, wenn Erfolgskriterium,
         Verantwortung und Termin festgelegt sind.
@@ -257,6 +277,7 @@ export function FactsheetPrint({ assessment, context }: Props) {
 
       {/* 4 Reifegrad */}
       <h1 className="druck-h1" data-nr="4">Reifegrad</h1>
+      <KiNote text={summary?.kapitel.reifegrad} />
       <p>{MATURITY_INTRO}</p>
       <p>
         <strong>Intern: {assessment.matrixYToday} von 10</strong> · <strong>Markt: {assessment.matrixXToday} von 10</strong>
@@ -293,26 +314,9 @@ export function FactsheetPrint({ assessment, context }: Props) {
         </>
       )}
 
-      {/* 5 KI-Auswertung */}
-      <h1 className="druck-h1" data-nr="5">KI-Auswertung</h1>
-      {summary ? (
-        <>
-          <p>{summary.kurzfassung}</p>
-          <h2 className="druck-h2" data-nr="5.1">Stärken</h2>
-          <Bullets items={summary.staerken} />
-          <h2 className="druck-h2" data-nr="5.2">Handlungsfelder</h2>
-          <Bullets items={summary.handlungsfelder} />
-          <h2 className="druck-h2" data-nr="5.3">Plausibilität</h2>
-          <p>{summary.plausibilitaet}</p>
-          <h2 className="druck-h2" data-nr="5.4">Empfehlungen</h2>
-          <Bullets items={summary.empfehlungen} />
-        </>
-      ) : (
-        <p>Für diese Abgabe wurde noch keine KI-Auswertung erstellt.</p>
-      )}
-      <h2 className="druck-h2" data-nr={summary ? "5.5" : "5.1"}>
-        Im CSP-Vergleich
-      </h2>
+      {/* 5 Im CSP-Vergleich */}
+      <h1 className="druck-h1" data-nr="5">Im CSP-Vergleich</h1>
+      <p>Themen aus der KI-Auswertung aller Teams {period}, die {assessment.team.name} nennt.</p>
       {context && context.teamThemes.length > 0 ? (
         <>
           <p className="druck-tabellentitel">
@@ -346,6 +350,17 @@ export function FactsheetPrint({ assessment, context }: Props) {
       )}
       <p className="druck-klein">KI-generierte Inhalte (OpenAI) auf Basis der Selbsteinschätzungen — zur Diskussion, nicht als Bewertung.</p>
     </div>
+  );
+}
+
+/** KI-Einordnung am Kapitelanfang: blauer Rand links, etwas kleiner als der Fliesstext. */
+function KiNote({ text }: { text?: string | null }) {
+  if (!text) return null;
+  return (
+    <p className="druck-ki">
+      <strong>KI-Einordnung: </strong>
+      {text}
+    </p>
   );
 }
 

@@ -5,10 +5,15 @@ import {
   isAssessmentReadOnly,
 } from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { isAiEnabled } from "@/lib/ai";
+import { refreshTeamSummarySafely } from "@/lib/team-summary";
 import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { measureInputSchema, syncMeasures } from "@/lib/measures";
+
+// Zeit für die KI-Auswertung, die nach dem Einreichen im Hintergrund läuft.
+export const maxDuration = 60;
 
 const assessmentSchema = z.object({
   status: z.enum(["DRAFT", "SUBMITTED"]).optional(),
@@ -118,6 +123,11 @@ export async function PATCH(
     `${updated.team.name} · ${updated.period.label}`,
     data.status === "SUBMITTED" && assessment.status === "SUBMITTED" ? "Aktualisierung eingereicht" : ""
   );
+
+  // Beim Einreichen die KI-Auswertung fürs Factsheet automatisch (nach der Antwort) neu erstellen.
+  if (data.status === "SUBMITTED" && isAiEnabled()) {
+    after(() => refreshTeamSummarySafely(id));
+  }
 
   return NextResponse.json(updated);
 }
