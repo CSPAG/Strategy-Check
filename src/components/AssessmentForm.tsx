@@ -22,7 +22,7 @@ import { formatTeamCategory } from "@/lib/constants";
 import type { Assessment, Measure, Team, Period } from "@prisma/client";
 import { toAssessmentPayload } from "@/lib/assessment-payload";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
-import { Section } from "@/components/ui";
+import { Section, StatusPill } from "@/components/ui";
 import { AiTextButton } from "@/components/assessment/AiTextButton";
 import { SwotAi } from "@/components/assessment/SwotAi";
 import { MeasureEditor, type MeasureDraft } from "@/components/assessment/MeasureEditor";
@@ -188,6 +188,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
   };
 
   const save = async (submit = false) => {
+    const wasSubmitted = data.status === "SUBMITTED";
     setSaving(true);
     setMessage("");
     try {
@@ -216,7 +217,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
       const updated = await res.json();
       setData(updated);
       setMeasures(toDrafts(updated.measureItems));
-      setMessage(submit ? "Eingereicht." : "Gespeichert.");
+      setMessage(submit ? (wasSubmitted ? "Aktualisierung eingereicht." : "Eingereicht.") : "Gespeichert.");
       router.refresh();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Fehler beim Speichern.");
@@ -226,6 +227,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
   };
 
   const disabled = readOnly;
+  const isSubmitted = data.status === "SUBMITTED";
   const showAi = aiEnabled && !disabled;
 
   const requestSuggestions = (area: "SWOT" | "REIFEGRAD") => (existing: string[]) =>
@@ -476,11 +478,16 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
 
       {!readOnly && (
         <div className="no-print sticky bottom-4 z-30 flex flex-wrap items-center gap-3 rounded-full bg-white/95 p-2 shadow-[0_8px_30px_rgba(20,20,19,0.12)] ring-1 ring-csp-linie backdrop-blur sm:w-max">
-          <button type="button" onClick={() => save(false)} disabled={saving} className="btn-sekundaer">
-            {saving ? "Speichern…" : "Entwurf speichern"}
-          </button>
+          <span className="pl-2">
+            <StatusPill status={data.status} />
+          </span>
+          {!isSubmitted && (
+            <button type="button" onClick={() => save(false)} disabled={saving} className="btn-sekundaer">
+              {saving ? "Speichern…" : "Entwurf speichern"}
+            </button>
+          )}
           <button type="button" onClick={() => save(true)} disabled={saving} className="btn-primaer">
-            Einreichen
+            {saving ? "Wird eingereicht…" : isSubmitted ? "Aktualisierung einreichen" : "Einreichen"}
           </button>
           {message && <p className="px-3 text-[13px] font-bold text-csp-grau">{message}</p>}
         </div>

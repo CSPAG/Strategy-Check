@@ -1,3 +1,5 @@
+import { IconSparkles } from "@/components/icons";
+
 /** Kleine Fetch-Hilfe für die KI-Endpunkte mit verständlichen Fehlermeldungen. */
 export async function callAi<T>(url: string, body: FormData | Record<string, unknown>): Promise<T> {
   const res = await fetch(url, {
@@ -13,10 +15,6 @@ export async function callAi<T>(url: string, body: FormData | Record<string, unk
 
 export function AiBadge() {
   return (
-    <span className="mr-1 inline-flex gap-[3px]" aria-hidden>
-      <span className="h-[6px] w-[6px] rounded-full bg-csp-blau" />
-      <span className="h-[6px] w-[6px] rounded-full bg-csp-blau" />
-      <span className="h-[6px] w-[6px] rounded-full bg-csp-blau" />
-    </span>
+    <IconSparkles size={15} className="mr-0.5 text-csp-blau" />
   );
 }

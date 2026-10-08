@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import { IconArrowLeft } from "@/components/icons";
 import { canViewAssessment } from "@/lib/assessment-access";
 import { prisma } from "@/lib/prisma";
 import { auditOnce } from "@/lib/audit";
@@ -30,8 +31,8 @@ export default async function FactsheetPage({
   return (
     <>
       <div className="no-print mb-8 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/" className="text-[14px] font-bold text-csp-grau hover:text-csp-ink">
-          ← Übersicht
+        <Link href="/" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-csp-grau hover:text-csp-ink">
+          <IconArrowLeft /> Übersicht
         </Link>
         <PrintButton />
       </div>

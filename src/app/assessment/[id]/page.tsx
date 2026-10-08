@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import { IconArrowLeft } from "@/components/icons";
 import {
   canEditAssessment,
   canViewAssessment,
@@ -7,7 +8,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { auditOnce } from "@/lib/audit";
 import { AssessmentForm } from "@/components/AssessmentForm";
-import { PageTitle } from "@/components/ui";
+import { PageTitle, StatusPill } from "@/components/ui";
 import { isAiEnabled } from "@/lib/ai";
 import { formatTeamCategory } from "@/lib/constants";
 import Link from "next/link";
@@ -40,22 +41,26 @@ export default async function AssessmentPage({
   return (
     <>
       <div className="no-print mb-8 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/" className="text-[14px] font-bold text-csp-grau hover:text-csp-ink">
-          ← Übersicht
+        <Link href="/" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-csp-grau hover:text-csp-ink">
+          <IconArrowLeft /> Übersicht
         </Link>
         <Link href={`/factsheet/${assessment.id}`} className="btn-sekundaer">
           Factsheet anzeigen
         </Link>
       </div>
       <PageTitle
-        kicker={<>Selbsteinschätzung · {formatTeamCategory(assessment.team.category)}</>}
+        kicker={
+          <span className="flex flex-wrap items-center gap-3">
+            Selbsteinschätzung · {formatTeamCategory(assessment.team.category)}
+            <StatusPill status={assessment.status} />
+          </span>
+        }
         title={`${assessment.team.name}.`}
         sub={`${assessment.period.label}.`}
       >
-        {readOnly && canEdit && assessment.period.isActive && assessment.status === "SUBMITTED" && (
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-[7px] w-[7px] rounded-full bg-csp-blau" />
-            Eingereicht — nur Admins können weiter bearbeiten.
+        {!readOnly && assessment.status === "SUBMITTED" && (
+          <span>
+            Bereits eingereicht. Änderungen gelten erst mit «Aktualisierung einreichen».
           </span>
         )}
         {readOnly && canEdit && !assessment.period.isActive && (

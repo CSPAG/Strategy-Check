@@ -1,4 +1,5 @@
 import { signIn } from "@/auth";
+import { IconArrowRight } from "@/components/icons";
 
 export default async function LoginPage({
   searchParams,
@@ -33,7 +34,7 @@ export default async function LoginPage({
         }}
       >
         <button type="submit" className="btn-primaer px-7 py-3.5 text-[15px]">
-          Mit CSP-Konto anmelden →
+          Mit CSP-Konto anmelden <IconArrowRight />
         </button>
       </form>
       <div className="mt-14 flex gap-2" aria-hidden>

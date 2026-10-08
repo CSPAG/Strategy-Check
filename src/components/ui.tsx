@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IconCheck } from "@/components/icons";
 
 /** Seitentitel nach CSP-Titelregel: Aussage schwarz, Einordnung grau. */
 export function PageTitle({
@@ -63,16 +64,17 @@ export function Section({
 }
 
 /** Statuspunkt: grün = eingereicht, grau = Entwurf. */
-export function StatusDot({ status }: { status: string }) {
+/** Status als Pille: grün «Eingereicht», sandfarben «Entwurf». */
+export function StatusPill({ status }: { status: string }) {
   const submitted = status === "SUBMITTED";
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-csp-grau">
-      <span
-        className={`inline-block h-[7px] w-[7px] rounded-full ${
-          submitted ? "bg-csp-gruen" : "bg-csp-linie"
-        }`}
-      />
-      {submitted ? "Eingereicht" : "Entwurf"}
+  return submitted ? (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-csp-gruen px-2.5 py-0.5 text-[12px] font-extrabold text-white">
+      <IconCheck size={13} strokeWidth={2} />
+      Eingereicht
+    </span>
+  ) : (
+    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-csp-sand px-2.5 py-0.5 text-[12px] font-bold text-csp-grau">
+      Entwurf
     </span>
   );
 }

@@ -34,8 +34,6 @@ export function isAssessmentReadOnly(
   if (assessment.period && !assessment.period.isActive && !canUnlockSubmitted(user.role)) {
     return true;
   }
-  if (assessment.status === "SUBMITTED" && !canUnlockSubmitted(user.role)) {
-    return true;
-  }
+  // Eingereichte Abgaben bleiben in offenen Perioden bearbeitbar («Aktualisierung einreichen»).
   return false;
 }

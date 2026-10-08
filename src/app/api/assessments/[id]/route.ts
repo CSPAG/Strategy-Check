@@ -111,8 +111,9 @@ export async function PATCH(
   });
   await audit(
     session.user,
-    data.status === "SUBMITTED" && assessment.status !== "SUBMITTED" ? "SUBMIT" : "SAVE",
-    `${updated.team.name} · ${updated.period.label}`
+    data.status === "SUBMITTED" ? "SUBMIT" : "SAVE",
+    `${updated.team.name} · ${updated.period.label}`,
+    data.status === "SUBMITTED" && assessment.status === "SUBMITTED" ? "Aktualisierung eingereicht" : ""
   );
 
   return NextResponse.json(updated);

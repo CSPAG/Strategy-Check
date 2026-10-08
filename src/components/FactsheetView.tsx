@@ -11,7 +11,7 @@ import { getOutlookPeriodLabel } from "@/lib/period-labels";
 import { CSP, categoryColor } from "@/lib/brand";
 import { GoalLegend, GoalProgress } from "@/components/charts/GoalProgress";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
-import { StatusDot } from "@/components/ui";
+import { StatusPill } from "@/components/ui";
 import type { Assessment, Measure, Team, Period } from "@prisma/client";
 import { MEASURE_AREA, MEASURE_STATUS, measureGaps, type MeasureStatus } from "@/lib/measure-labels";
 
@@ -35,7 +35,7 @@ export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
       <header>
         <p className="kicker mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span>CSPstrategie 2026+ · Factsheet</span>
-          <StatusDot status={assessment.status} />
+          <StatusPill status={assessment.status} />
         </p>
         <h1 className="titel">
           {assessment.team.name}.
