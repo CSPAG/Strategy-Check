@@ -110,8 +110,8 @@ export function PeriodManager({ periods, suggestion }: { periods: PeriodRow[]; s
             <span>
               <span className="font-extrabold">Letzte Abgabe als Ausgangspunkt übernehmen.</span>{" "}
               <span className="text-csp-grau">
-                Ziel-Auswahl, SWOT und Reifegrad werden als Entwurf vorbefüllt. Zielerreichung, Erläuterungen und
-                Massnahmen starten leer — so bleibt der Prognose-Check unverfälscht.
+                Ziel-Auswahl übernommen, Zielerreichung und Reifegrad starten bei der damaligen Prognose. SWOT und offene
+                Massnahmen übernehmen die Teams selbst per Button; die Vorperiode bleibt in der Erfassung grau sichtbar.
               </span>
             </span>
           </label>

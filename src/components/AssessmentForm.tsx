@@ -32,6 +32,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { IconFile } from "@/components/icons";
 import { useState } from "react";
+import type { PreviousAssessment } from "@/lib/previous-assessment";
+import { newMeasureKey } from "@/components/assessment/MeasureEditor";
 
 type AssessmentWithMeta = Assessment & {
   team: Team;
@@ -43,6 +45,8 @@ type AssessmentWithMeta = Assessment & {
 
 type Props = {
   assessment: AssessmentWithMeta;
+  /** Letzte frühere Abgabe des Teams: grau als Referenz, SWOT und offene Massnahmen übernehmbar. */
+  previous?: PreviousAssessment | null;
   readOnly?: boolean;
   aiEnabled?: boolean;
 };
@@ -61,16 +65,31 @@ function toDrafts(items: Measure[] | undefined): MeasureDraft[] {
 }
 
 /** Skala 1–5 mit Namen (Initial … Optimierend), damit Eingabe und Factsheet dieselbe Sprache sprechen. */
+/** Fixer Wert aus der Vorperiode (grau gestrichelt, nicht klickbar). */
+type Reference = { value: number; label: string };
+
+function ReferenceNote({ reference, text }: { reference?: Reference; text: string }) {
+  if (!reference) return null;
+  return (
+    <p className="mt-2 flex items-center gap-2 text-[12.5px] font-semibold text-csp-grau">
+      <span className="inline-block h-3 w-3 shrink-0 rounded-[4px] border-[1.6px] border-dashed border-csp-grau-titel bg-csp-sand/60" />
+      {reference.label}: {text}
+    </p>
+  );
+}
+
 function GoalScalePicker({
   label,
   value,
   onChange,
   disabled,
+  reference,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   disabled?: boolean;
+  reference?: Reference;
 }) {
   return (
     <div>
@@ -78,6 +97,7 @@ function GoalScalePicker({
       <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label={label}>
         {MATURITY_LEVELS.map((l) => {
           const active = l.value === value;
+          const ref = !active && reference?.value === l.value;
           return (
             <button
               key={l.value}
@@ -91,7 +111,9 @@ function GoalScalePicker({
               className={`rounded-2xl px-1 py-2.5 text-center transition disabled:cursor-not-allowed ${
                 active
                   ? "bg-csp-ink text-white"
-                  : "bg-white text-csp-ink ring-1 ring-inset ring-csp-linie hover:ring-csp-ink disabled:hover:ring-csp-linie"
+                  : ref
+                    ? "border-[1.6px] border-dashed border-csp-grau-titel bg-csp-sand/60 text-csp-ink"
+                    : "bg-white text-csp-ink ring-1 ring-inset ring-csp-linie hover:ring-csp-ink disabled:hover:ring-csp-linie"
               }`}
             >
               <span className="block text-[17px] font-extrabold leading-none">{l.value}</span>
@@ -110,6 +132,10 @@ function GoalScalePicker({
         <span className="font-extrabold text-csp-ink">{getMaturityLabel(value)}:</span>{" "}
         {MATURITY_LEVELS.find((l) => l.value === value)?.description}
       </p>
+      <ReferenceNote
+        reference={reference}
+        text={reference ? `${reference.value} · ${getMaturityLabel(reference.value)}` : ""}
+      />
     </div>
   );
 }
@@ -120,11 +146,13 @@ function TenScalePicker({
   value,
   onChange,
   disabled,
+  reference,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   disabled?: boolean;
+  reference?: Reference;
 }) {
   return (
     <div>
@@ -143,7 +171,9 @@ function TenScalePicker({
             className={`rounded-xl py-2 text-[14px] font-extrabold transition disabled:cursor-not-allowed ${
               v === value
                 ? "bg-csp-ink text-white"
-                : "bg-white ring-1 ring-inset ring-csp-linie hover:ring-csp-ink disabled:hover:ring-csp-linie"
+                : reference?.value === v
+                  ? "border-[1.6px] border-dashed border-csp-grau-titel bg-csp-sand/60"
+                  : "bg-white ring-1 ring-inset ring-csp-linie hover:ring-csp-ink disabled:hover:ring-csp-linie"
             }`}
           >
             {v}
@@ -154,11 +184,12 @@ function TenScalePicker({
         <span>tief</span>
         <span>hoch</span>
       </div>
+      <ReferenceNote reference={reference} text={reference ? String(reference.value) : ""} />
     </div>
   );
 }
 
-export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false }: Props) {
+export function AssessmentForm({ assessment, previous = null, readOnly = false, aiEnabled = false }: Props) {
   const router = useRouter();
   const [data, setData] = useState(assessment);
   const [saving, setSaving] = useState(false);
@@ -179,6 +210,11 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
       ? goals.filter((g) => g !== id)
       : [...goals, id].sort((a, b) => a - b);
     const pruned = pruneGoalMaturity(goalMaturity, nextGoals);
+    // Neu angekreuzt und in der Vorperiode verfolgt: startet bei der damaligen Prognose
+    const prevGoal = previous?.goalMaturity[String(id)];
+    if (!goals.includes(id) && prevGoal && !pruned[String(id)]) {
+      pruned[String(id)] = { today: prevGoal.outlook, outlook: prevGoal.outlook };
+    }
     update({
       strategicGoals: JSON.stringify(nextGoals),
       strategicGoalMaturity: serializeStrategicGoalMaturity(pruned),
@@ -230,6 +266,53 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
   };
 
   const disabled = readOnly;
+  const prevSwotFilled = previous
+    ? (Object.keys(previous.swot) as (keyof PreviousAssessment["swot"])[]).filter((k) => previous.swot[k].trim())
+    : [];
+  const takeOverSwot = () => {
+    if (!previous) return;
+    const filled = (["strengths", "gaps", "opportunities", "risks"] as const).some((k) => ((data[k] as string) ?? "").trim());
+    if (filled && !window.confirm(`Die SWOT-Felder sind schon befüllt. Mit dem Stand aus ${previous.period} überschreiben?`)) return;
+    update({ ...previous.swot });
+  };
+  const openPrevMeasures = (area: "SWOT" | "REIFEGRAD") =>
+    (previous?.openMeasures ?? []).filter(
+      (m) => (m.area === "REIFEGRAD" ? "REIFEGRAD" : "SWOT") === area && !measures.some((x) => x.title.trim() === m.title.trim())
+    );
+  const takeOverMeasures = (area: "SWOT" | "REIFEGRAD") =>
+    setMeasures((cur) => [
+      ...cur,
+      ...openPrevMeasures(area).map((m) => ({
+        key: newMeasureKey(),
+        area,
+        title: m.title,
+        indicator: m.indicator,
+        owner: m.owner,
+        dueDate: m.dueDate,
+        status: m.status as MeasureStatus,
+      })),
+    ]);
+  const prevMeasuresButton = (area: "SWOT" | "REIFEGRAD") => {
+    const n = openPrevMeasures(area).length;
+    if (!previous || disabled || n === 0) return null;
+    return (
+      <PrevBar
+        text={`${n} ${n === 1 ? "offene Massnahme" : "offene Massnahmen"} aus ${previous.period}. Übernehmen und Status nachführen.`}
+        action={`Aus ${previous.period} übernehmen`}
+        onClick={() => takeOverMeasures(area)}
+      />
+    );
+  };
+  const goalRef = (id: number): Reference | undefined => {
+    const v = previous?.goalMaturity[String(id)];
+    return v ? { value: v.outlook, label: `Prognose aus ${previous!.period}` } : undefined;
+  };
+  const matrixRef = (axis: "x" | "y"): Reference | undefined =>
+    previous
+      ? previous.matrix.outlook
+        ? { value: previous.matrix.outlook[axis], label: `Prognose aus ${previous.period}` }
+        : { value: previous.matrix.today[axis], label: `Ist ${previous.period}` }
+      : undefined;
   const isSubmitted = data.status === "SUBMITTED";
   // Reifegrad-Prognose: solange nicht erfasst, gleich wie heute.
   const outlookX = data.matrixOutlookSet ? data.matrixXOutlook : data.matrixXToday;
@@ -284,6 +367,11 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
                 />
                 <span className="text-[14px] font-semibold leading-snug text-csp-text">
                   <span className="font-extrabold text-csp-ink">{g.id}. {g.short}</span>
+                  {previous?.goals.includes(g.id) && (
+                    <span className="ml-2 inline-block rounded-full bg-csp-sand px-2 py-0.5 align-middle text-[11px] font-bold text-csp-grau">
+                      in {previous.period} gewählt
+                    </span>
+                  )}
                   <br />
                   {g.label}
                 </span>
@@ -326,6 +414,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
                       value={m.today}
                       onChange={(v) => setMaturity(g.id, "today", v)}
                       disabled={disabled}
+                      reference={goalRef(g.id)}
                     />
                     <GoalScalePicker
                       label={`Prognose +6 Monate · ${outlookPeriod}`}
@@ -359,6 +448,13 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
       </Section>
 
       <Section nr="03" title="SWOT-Analyse." sub="Innen und aussen." intro={SWOT_INTRO}>
+        {previous && !disabled && prevSwotFilled.length > 0 && (
+          <PrevBar
+            text={`${previous.period} hat eine SWOT. Übernehmen und anpassen, was noch gilt.`}
+            action={`Aus ${previous.period} übernehmen`}
+            onClick={takeOverSwot}
+          />
+        )}
         {showAi && (
           <SwotAi
             assessmentId={data.id}
@@ -392,6 +488,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
           <p className="nebentext mb-3">
             Konkret und überprüfbar: Was wird getan, woran wird der Erfolg gemessen, wer ist verantwortlich, bis wann.
           </p>
+          {prevMeasuresButton("SWOT")}
           <MeasureEditor
             area="SWOT"
             measures={measures}
@@ -422,12 +519,14 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
               value={data.matrixYToday}
               onChange={(v) => update({ matrixYToday: v })}
               disabled={disabled}
+              reference={matrixRef("y")}
             />
             <TenScalePicker
               label="Markt (X-Achse)"
               value={data.matrixXToday}
               onChange={(v) => update({ matrixXToday: v })}
               disabled={disabled}
+              reference={matrixRef("x")}
             />
             <div className="border-t border-csp-linie pt-5">
               <p className="label mb-0">Prognose +6 Monate · {outlookPeriod}</p>
@@ -468,6 +567,11 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
             )}
             <PositioningMatrix
               forecastLabels
+              reference={
+                previous
+                  ? { period: previous.period, today: previous.matrix.today, outlook: previous.matrix.outlook ?? undefined }
+                  : undefined
+              }
               points={[
                 {
                   id: data.id,
@@ -496,6 +600,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
             einen Punkt zu erhöhen?
           </p>
           <div className="mt-3">
+            {prevMeasuresButton("REIFEGRAD")}
             <MeasureEditor
               area="REIFEGRAD"
               measures={measures}
@@ -579,5 +684,17 @@ function TextArea({
         onChange={(e) => onChange(e.target.value)}
       />
     </label>
+  );
+}
+
+/** Hinweis mit Übernehmen-Button für Inhalte aus der Vorperiode. */
+function PrevBar({ text, action, onClick }: { text: string; action: string; onClick: () => void }) {
+  return (
+    <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-csp-sand/70 px-4 py-3">
+      <span className="text-[13.5px] font-semibold text-csp-grau">{text}</span>
+      <button type="button" className="btn-sekundaer bg-white" onClick={onClick}>
+        {action}
+      </button>
+    </div>
   );
 }
