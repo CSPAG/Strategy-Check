@@ -10,6 +10,7 @@ import { auditOnce } from "@/lib/audit";
 import { AssessmentForm } from "@/components/AssessmentForm";
 import { PageTitle, StatusPill } from "@/components/ui";
 import { isAiEnabled } from "@/lib/ai";
+import { loadPreviousAssessment } from "@/lib/previous-assessment";
 import { formatTeamCategory } from "@/lib/constants";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -37,6 +38,7 @@ export default async function AssessmentPage({
   await auditOnce(session.user, "VIEW", `${assessment.team.name} · ${assessment.period.label}`, "Selbsteinschätzung");
   const readOnly = isAssessmentReadOnly(session.user, assessment);
   const canEdit = canEditAssessment(session.user, assessment);
+  const previous = await loadPreviousAssessment(assessment);
 
   return (
     <>
@@ -71,7 +73,7 @@ export default async function AssessmentPage({
         )}
         {readOnly && !canEdit && <span>Nur Lesen (Viewer).</span>}
       </PageTitle>
-      <AssessmentForm assessment={assessment} readOnly={readOnly} aiEnabled={isAiEnabled()} />
+      <AssessmentForm assessment={assessment} previous={previous} readOnly={readOnly} aiEnabled={isAiEnabled()} />
     </>
   );
 }

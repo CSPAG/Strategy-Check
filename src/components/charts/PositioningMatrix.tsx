@@ -52,6 +52,7 @@ export function PositioningMatrix({
   points,
   forecastLabels = false,
   pathLabels = false,
+  reference,
   onPick,
   highlightId,
   onHover,
@@ -62,6 +63,8 @@ export function PositioningMatrix({
   forecastLabels?: boolean;
   /** Perioden am Pfad beschriften (Einzelansichten: Team-Karte, Factsheet). */
   pathLabels?: boolean;
+  /** Fixe, graue Werte der Vorperiode (Erfassung): damaliges Ist und damalige Prognose. */
+  reference?: { period: string; today: { x: number; y: number }; outlook?: { x: number; y: number } };
   onPick?: (markt: number, intern: number) => void;
   highlightId?: string | null;
   /** Alle Teams der gehoverten Position (bei Überlappung mehrere). */
@@ -179,6 +182,63 @@ export function PositioningMatrix({
         >
           Intern (Y) →
         </text>
+
+        {/* Vorperiode (fix, grau): Ist → Prognose */}
+        {reference && (
+          <g className="pointer-events-none">
+            {reference.outlook &&
+              (reference.outlook.x !== reference.today.x || reference.outlook.y !== reference.today.y) && (
+                <line
+                  x1={toX(reference.today.x)}
+                  y1={toY(reference.today.y)}
+                  x2={toX(reference.outlook.x)}
+                  y2={toY(reference.outlook.y)}
+                  stroke={CSP.grauTitel}
+                  strokeWidth={1.4}
+                  strokeDasharray="3 3"
+                />
+              )}
+            <circle cx={toX(reference.today.x)} cy={toY(reference.today.y)} r={4.5} fill="white" stroke={CSP.grauTitel} strokeWidth={1.6} />
+            <text
+              x={toX(reference.today.x) - 12}
+              y={toY(reference.today.y) + 16}
+              textAnchor="end"
+              className="text-[10.5px] font-bold"
+              fill={CSP.grau}
+              stroke="white"
+              strokeWidth={3}
+              paintOrder="stroke"
+            >
+              Ist {reference.period}
+            </text>
+            {reference.outlook && (
+              <>
+                <circle
+                  cx={toX(reference.outlook.x)}
+                  cy={toY(reference.outlook.y)}
+                  r={9}
+                  fill="#f3f1ec"
+                  fillOpacity={0.8}
+                  stroke={CSP.grauTitel}
+                  strokeWidth={1.6}
+                  strokeDasharray="3 2"
+                />
+                <text
+                  x={toX(reference.outlook.x)}
+                  y={toY(reference.outlook.y) - 14}
+                  textAnchor="middle"
+                  className="text-[10.5px] font-bold"
+                  fill={CSP.grau}
+                  stroke="white"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                >
+                  Prognose {reference.period}
+                </text>
+              </>
+            )}
+          </g>
+        )}
 
         {/* Entwicklung über die Perioden */}
         {points.map((p) =>

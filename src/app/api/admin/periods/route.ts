@@ -1,9 +1,19 @@
 import { requireUser } from "@/lib/api-guard";
 import { audit } from "@/lib/audit";
-import { PERIOD_COOKIE, sortPeriods } from "@/lib/period-scope";
+import { PERIOD_COOKIE } from "@/lib/period-scope";
 import { prisma } from "@/lib/prisma";
+import { findPreviousSource } from "@/lib/previous-assessment";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { parseStrategicGoalMaturity, serializeStrategicGoalMaturity } from "@/lib/strategic-maturity";
+
+/** Zielerreichung der neuen Periode startet bei der damaligen Prognose (heute = Prognose = alte Prognose). */
+function forecastAsStart(raw: string) {
+  const m = parseStrategicGoalMaturity(raw ?? "{}");
+  return serializeStrategicGoalMaturity(
+    Object.fromEntries(Object.entries(m).map(([id, v]) => [id, { today: v.outlook, outlook: v.outlook }]))
+  );
+}
 
 const schema = z.object({
   half: z.union([z.literal(1), z.literal(2)]),
@@ -15,7 +25,7 @@ const schema = z.object({
 /**
  * Neue Periode starten: legt die Periode und für jedes Team eine leere Selbsteinschätzung an.
  * Optional werden die bisherigen Perioden abgeschlossen (nur noch Admins können dort bearbeiten)
- * und Ziel-Auswahl, SWOT und Reifegrad aus der letzten Abgabe als Entwurf übernommen.
+ * und Ziel-Auswahl sowie die damalige Prognose (Ziele, Reifegrad) als Startwerte übernommen.
  */
 export async function POST(req: Request) {
   const { user, error } = await requireUser("admin");
@@ -30,18 +40,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Die Periode ${label} gibt es bereits.` }, { status: 409 });
   }
 
-  const previous = sortPeriods(await prisma.period.findMany()).at(-1);
   const teams = await prisma.team.findMany();
+
+  // Quelle je Team: letzte eingereichte Abgabe (sonst jüngster Entwurf) vor der neuen Periode
+  const sources = new Map(
+    await Promise.all(teams.map(async (t) => [t.id, await findPreviousSource(t.id, label)] as const))
+  );
 
   const period = await prisma.$transaction(async (tx) => {
     if (closePrevious) await tx.period.updateMany({ data: { isActive: false } });
     const created = await tx.period.create({ data: { name, label, isActive: true } });
 
     for (const team of teams) {
-      const source =
-        carryOver && previous
-          ? await tx.assessment.findUnique({ where: { teamId_periodId: { teamId: team.id, periodId: previous.id } } })
-          : null;
+      const source = carryOver ? sources.get(team.id) ?? null : null;
       await tx.assessment.create({
         data: {
           teamId: team.id,
@@ -50,13 +61,11 @@ export async function POST(req: Request) {
           status: "DRAFT",
           ...(source
             ? {
+                // Startwerte = damalige Prognose; SWOT und Massnahmen übernimmt das Team per Button
                 strategicGoals: source.strategicGoals,
-                strengths: source.strengths,
-                gaps: source.gaps,
-                opportunities: source.opportunities,
-                risks: source.risks,
-                matrixXToday: source.matrixXToday,
-                matrixYToday: source.matrixYToday,
+                strategicGoalMaturity: forecastAsStart(source.strategicGoalMaturity),
+                matrixXToday: source.matrixOutlookSet ? source.matrixXOutlook : source.matrixXToday,
+                matrixYToday: source.matrixOutlookSet ? source.matrixYOutlook : source.matrixYToday,
               }
             : {}),
         },
@@ -70,7 +79,7 @@ export async function POST(req: Request) {
     "ADMIN",
     label,
     `Neue Periode gestartet${closePrevious ? ", bisherige abgeschlossen" : ""}${
-      carryOver && previous ? `, Entwürfe aus ${previous.label} übernommen` : ""
+      carryOver ? ", Ziele und Prognosen der letzten Abgaben als Start übernommen" : ""
     }`
   );
 
