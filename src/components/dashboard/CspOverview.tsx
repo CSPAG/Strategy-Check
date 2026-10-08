@@ -6,10 +6,13 @@ import { PositioningMatrix, type MatrixPoint } from "@/components/charts/Positio
 import { teamShapeClass } from "@/lib/team-colors";
 import { STRATEGIC_GOALS, getStrategicGoalFullLabel } from "@/lib/constants";
 import { round1, type TeamTrend } from "@/lib/dashboard-data";
-import { sortPeriodLabels } from "@/lib/period-labels";
+import { getOutlookPeriodLabel, sortPeriodLabels } from "@/lib/period-labels";
+import { GoalTimeline, TimelineLegend } from "@/components/charts/GoalTimeline";
+import { averageTimelineRows } from "@/lib/timeline";
 import { useMemo, useState } from "react";
 
 type Filter = "Alle" | "Circle" | "Unit";
+type Mode = "verlauf" | "periode";
 
 /** CSP-Sicht: alle eingereichten Teams einer Periode in einer Matrix und konsolidiert pro Ziel. */
 export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defaultPeriod?: string }) {
@@ -19,24 +22,37 @@ export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defa
       sortPeriodLabels([...teams.flatMap((t) => t.snapshots.map((s) => s.period)), ...(defaultPeriod ? [defaultPeriod] : [])]),
     [teams, defaultPeriod]
   );
-  const [period, setPeriod] = useState(defaultPeriod ?? periods.at(-1) ?? "");
+  // Einzelansicht startet auf der neusten Periode mit Daten (eine frisch gestartete Periode ist noch leer)
+  const [period, setPeriod] = useState(() => {
+    const withData = sortPeriodLabels(teams.flatMap((t) => t.snapshots.map((s) => s.period)));
+    return defaultPeriod && withData.includes(defaultPeriod) ? defaultPeriod : withData.at(-1) ?? defaultPeriod ?? "";
+  });
   const [filter, setFilter] = useState<Filter>("Circle");
   const [showTrail, setShowTrail] = useState(true);
-  const [showForecast, setShowForecast] = useState(false);
+  // Standard: Verlauf über alle Perioden inkl. Prognose; «Einzelne Periode» zeigt den bisherigen Schnitt.
+  const [mode, setMode] = useState<Mode>("verlauf");
+  const [showForecast, setShowForecast] = useState(true);
   const [hoverIds, setHoverIds] = useState<string[]>([]);
   const [listHover, setListHover] = useState<string | null>(null);
 
-  const visible = teams.filter(
-    (t) => (filter === "Alle" || t.category === filter) && t.snapshots.some((s) => s.period === period)
-  );
+  const inFilter = teams.filter((t) => filter === "Alle" || t.category === filter);
+  // Verlauf: jedes Team mit seiner letzten Abgabe; Einzelne Periode: nur Teams mit Abgabe in dieser Periode.
+  const visible =
+    mode === "verlauf"
+      ? inFilter.filter((t) => t.snapshots.length > 0)
+      : inFilter.filter((t) => t.snapshots.some((s) => s.period === period));
+  const snapOf = (t: TeamTrend) =>
+    mode === "verlauf" ? t.snapshots[t.snapshots.length - 1] : t.snapshots.find((s) => s.period === period)!;
+  const dataPeriods = sortPeriodLabels(inFilter.flatMap((t) => t.snapshots.map((s) => s.period)));
+  const lastDataPeriod = dataPeriods.at(-1) ?? period;
   const prevPeriod = periods[periods.indexOf(period) - 1];
 
   const points: MatrixPoint[] = visible.map((t) => {
-    const idx = t.snapshots.findIndex((s) => s.period === period);
+    const idx = t.snapshots.indexOf(snapOf(t));
     const s = t.snapshots[idx];
     return {
       id: t.id,
-      label: t.name,
+      label: mode === "verlauf" ? `${t.name} · ${s.period}` : t.name,
       x: s.markt,
       y: s.intern,
       color: t.color,
@@ -106,7 +122,13 @@ export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defa
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-center gap-3">
-        <Segmented options={periods} value={period} onChange={setPeriod} />
+        <Segmented
+          options={["verlauf", "periode"] as Mode[]}
+          labels={{ verlauf: "Verlauf · alle Perioden", periode: "Einzelne Periode" }}
+          value={mode}
+          onChange={setMode}
+        />
+        {mode === "periode" && <Segmented options={periods} value={period} onChange={setPeriod} />}
         <Segmented
           options={["Circle", "Unit", "Alle"] as Filter[]}
           labels={{ Circle: "Circles", Unit: "Units", Alle: "Alle" }}
@@ -134,7 +156,9 @@ export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defa
       </div>
 
       <div>
-        <h3 className="label">Reifegrad-Matrix · {period}</h3>
+        <h3 className="label">
+          Reifegrad-Matrix · {mode === "verlauf" ? `Verlauf ${dataPeriods[0] ?? ""} – ${lastDataPeriod}` : period}
+        </h3>
         {visible.length === 0 ? (
           <p className="nebentext">Für diese Auswahl ist noch nichts eingereicht.</p>
         ) : (
@@ -147,7 +171,7 @@ export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defa
             />
             <ul className="self-start text-[13.5px]">
               {visible.map((t) => {
-                const s = t.snapshots.find((x) => x.period === period)!;
+                const s = snapOf(t);
                 return (
                   <li
                     key={t.id}
@@ -165,6 +189,9 @@ export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defa
                       <span className="truncate">{t.name}</span>
                     </span>
                     <span className="shrink-0 tabular-nums text-csp-grau">
+                      {mode === "verlauf" && s.period !== lastDataPeriod && (
+                        <span className="text-csp-grau-titel">{s.period} · </span>
+                      )}
                       Intern {s.intern} · Markt {s.markt}
                       {showForecast && s.internOutlook !== null && (
                         <span className="text-csp-ink">
@@ -193,7 +220,26 @@ export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defa
         )}
       </div>
 
-      {goalRows.length > 0 && (
+      {mode === "verlauf" && dataPeriods.length > 0 && (
+        <div>
+          <h3 className="label">
+            Strategische Ziele · Verlauf, Durchschnitt{" "}
+            {filter === "Alle" ? "aller Teams" : filter === "Unit" ? "der Units" : "der Circles"}
+          </h3>
+          <GoalTimeline
+            periods={dataPeriods}
+            outlookLabel={`Prognose ${getOutlookPeriodLabel(lastDataPeriod)}`}
+            rows={averageTimelineRows(inFilter, dataPeriods)}
+          />
+          <TimelineLegend />
+          <p className="nebentext mt-2">
+            Pro Periode der Durchschnitt aller Teams (gemäss Auswahl oben), die das Ziel verfolgen. Mouse-over auf einen
+            Punkt zeigt die Einzelwerte dieser Periode.
+          </p>
+        </div>
+      )}
+
+      {mode === "periode" && goalRows.length > 0 && (
         <div>
           <h3 className="label">
             Strategische Ziele · Durchschnitt {filter === "Alle" ? "aller Teams" : filter === "Unit" ? "der Units" : "der Circles"} ·{" "}

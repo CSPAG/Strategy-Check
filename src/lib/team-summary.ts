@@ -71,6 +71,22 @@ async function load(assessmentId: string) {
   return { a, text, hash: createHash("sha256").update(text).digest("hex") };
 }
 
+/** Alle früheren eingereichten Abgaben desselben Teams, chronologisch. */
+export async function findHistory(a: Assessment & { period: Period }): Promise<Full[]> {
+  const candidates = await prisma.assessment.findMany({
+    where: { teamId: a.teamId, status: "SUBMITTED", id: { not: a.id } },
+    include: { team: true, period: true, measureItems: { orderBy: { sort: "asc" } } },
+  });
+  const key = (label: string) => {
+    const m = label.match(/^H([12])\s+(\d{4})$/);
+    return m ? Number(m[2]) * 2 + Number(m[1]) : 0;
+  };
+  const current = key(a.period.label);
+  return candidates
+    .filter((c) => key(c.period.label) < current)
+    .sort((x, y) => key(x.period.label) - key(y.period.label));
+}
+
 /** Letzte eingereichte Abgabe desselben Teams aus einer früheren Periode. */
 export async function findPrevious(a: Assessment & { period: Period }): Promise<Full | null> {
   const candidates = await prisma.assessment.findMany({

@@ -10,6 +10,8 @@ import { parseStrategicGoalMaturity } from "@/lib/strategic-maturity";
 import { getOutlookPeriodLabel } from "@/lib/period-labels";
 import { MEASURE_AREA, MEASURE_STATUS, type MeasureStatus } from "@/lib/measure-labels";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
+import { GoalTimeline } from "@/components/charts/GoalTimeline";
+import { teamTimelineRows } from "@/lib/timeline";
 import type { Assessment, Measure, Period, Team } from "@prisma/client";
 import { PRINT_LOGO_DATA_URI } from "@/lib/print-logo";
 import type { FactsheetContext } from "@/lib/factsheet-context";
@@ -74,6 +76,7 @@ const dateCh = (d: Date) => d.toLocaleDateString("de-CH", { day: "numeric", mont
 
 export function FactsheetPrint({ assessment, context }: Props) {
   const prev = context?.previous ?? null;
+  const history = context?.history ?? [];
   const summary = context?.summary?.data ?? null;
   const goals = parseStrategicGoals(assessment.strategicGoals);
   const maturity = parseStrategicGoalMaturity(assessment.strategicGoalMaturity ?? "{}");
@@ -81,8 +84,18 @@ export function FactsheetPrint({ assessment, context }: Props) {
   const category = formatTeamCategory(assessment.team.category);
   const period = assessment.period.label;
   const outlook = getOutlookPeriodLabel(period);
+  const timelineSnapshots = [
+    ...history.map((h) => ({
+      period: h.period,
+      goals: Object.entries(h.goals).map(([id, v]) => ({ id: Number(id), today: v.today, outlook: v.outlook })),
+    })),
+    { period, goals: selected.map((g) => ({ id: g.id, ...(maturity[String(g.id)] ?? { today: 2, outlook: 2 }) })) },
+  ];
+  const timelinePeriods = timelineSnapshots.map((t) => t.period);
+  const timelineRows = teamTimelineRows(timelineSnapshots, timelinePeriods);
   const measures = assessment.measureItems;
   let tableNr = 0;
+  let figureNr = 0;
 
   return (
     <div className="druck">
@@ -149,15 +162,19 @@ export function FactsheetPrint({ assessment, context }: Props) {
       ) : (
         <>
           <p className="druck-tabellentitel">
-            Tabelle {++tableNr}: Zielerreichung {period} und Prognose {outlook}
+            Tabelle {++tableNr}: Zielerreichung {history.length ? `Verlauf ${history[0].period} – ${period}` : period} und Prognose {outlook}
           </p>
           <table className="druck-tabelle">
             <thead>
               <tr>
                 <th style={{ width: "8mm" }}>Nr.</th>
                 <th>Strategisches Ziel</th>
-                {prev && <th style={{ width: "15mm" }}>{prev.period}</th>}
-                <th style={{ width: "22mm" }}>Heute</th>
+                {history.map((h) => (
+                  <th key={h.period} style={{ width: "13mm" }}>
+                    {h.period}
+                  </th>
+                ))}
+                <th style={{ width: "22mm" }}>{period}</th>
                 <th style={{ width: "22mm" }}>Prognose</th>
                 <th style={{ width: "10mm" }}>Δ</th>
                 {prev && <th style={{ width: "22mm" }}>Prognose-Check</th>}
@@ -177,7 +194,9 @@ export function FactsheetPrint({ assessment, context }: Props) {
                       <br />
                       {g.label}
                     </td>
-                    {prev && <td>{p ? p.today : "–"}</td>}
+                    {history.map((h) => (
+                      <td key={h.period}>{h.goals[String(g.id)]?.today ?? "–"}</td>
+                    ))}
                     <td>
                       {m.today} · {getMaturityLabel(m.today)}
                     </td>
@@ -205,6 +224,16 @@ export function FactsheetPrint({ assessment, context }: Props) {
               })}
             </tbody>
           </table>
+          {history.length > 0 && (
+            <>
+              <p className="druck-tabellentitel">
+                Abbildung {++figureNr}: Verlauf der Zielerreichung {history[0].period} bis Prognose {outlook}
+              </p>
+              <div className="druck-abbildung druck-verlauf">
+                <GoalTimeline periods={timelinePeriods} outlookLabel={`Prognose ${outlook}`} rows={timelineRows} compact />
+              </div>
+            </>
+          )}
         </>
       )}
       {assessment.maturityNotes && (
@@ -302,7 +331,7 @@ export function FactsheetPrint({ assessment, context }: Props) {
           </>
         )}
       </p>
-      <p className="druck-tabellentitel">Abbildung 1: Positionierung {assessment.team.name}, {period}</p>
+      <p className="druck-tabellentitel">Abbildung {++figureNr}: Positionierung {assessment.team.name}, {period}</p>
       <div className="druck-abbildung">
         <PositioningMatrix
           points={[
@@ -315,10 +344,12 @@ export function FactsheetPrint({ assessment, context }: Props) {
               forecast: assessment.matrixOutlookSet
                 ? { x: assessment.matrixXOutlook, y: assessment.matrixYOutlook }
                 : undefined,
-              trail: prev ? [{ x: prev.markt, y: prev.intern, period: prev.period }] : undefined,
+              trail: history.map((h) => ({ x: h.markt, y: h.intern, period: h.period })),
+              currentLabel: period,
             },
           ]}
           forecastLabels
+          pathLabels
         />
       </div>
       {assessment.matrixNotes && (

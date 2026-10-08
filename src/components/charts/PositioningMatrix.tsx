@@ -21,6 +21,8 @@ export type MatrixPoint = {
   trail?: { x: number; y: number; period: string }[];
   /** Prognose +6 Monate — Pfeil vom Status quo dorthin (Teamfarbe), Ring als Zielpunkt. */
   forecast?: { x: number; y: number };
+  /** Beschriftung am aktuellen Punkt (z. B. «H2 2026 · heute»), nur mit pathLabels. */
+  currentLabel?: string;
 };
 
 const W = 400;
@@ -49,6 +51,7 @@ const toY = (v: number) => PAD_T + PLOT - (v - 0.5) * CELL;
 export function PositioningMatrix({
   points,
   forecastLabels = false,
+  pathLabels = false,
   onPick,
   highlightId,
   onHover,
@@ -57,6 +60,8 @@ export function PositioningMatrix({
   points: MatrixPoint[];
   /** Prognosewerte als Text neben dem Ring anzeigen (Einzelansichten). */
   forecastLabels?: boolean;
+  /** Perioden am Pfad beschriften (Einzelansichten: Team-Karte, Factsheet). */
+  pathLabels?: boolean;
   onPick?: (markt: number, intern: number) => void;
   highlightId?: string | null;
   /** Alle Teams der gehoverten Position (bei Überlappung mehrere). */
@@ -188,9 +193,25 @@ export function PositioningMatrix({
                 markerEnd={p.trail.at(-1)!.x === p.x && p.trail.at(-1)!.y === p.y ? undefined : "url(#trail-pfeil)"}
               />
               {p.trail.map((t) => (
-                <circle key={t.period} cx={toX(t.x)} cy={toY(t.y)} r={4.5} fill="white" stroke={CSP.grauTitel} strokeWidth={1.6}>
-                  <title>{`${p.label} · ${t.period}: Intern ${t.y} · Markt ${t.x}`}</title>
-                </circle>
+                <g key={t.period}>
+                  <circle cx={toX(t.x)} cy={toY(t.y)} r={4.5} fill="white" stroke={CSP.grauTitel} strokeWidth={1.6}>
+                    <title>{`${p.label} · ${t.period}: Intern ${t.y} · Markt ${t.x}`}</title>
+                  </circle>
+                  {pathLabels && (
+                    <text
+                      x={toX(t.x)}
+                      y={t.y >= 10 ? toY(t.y) + 17 : toY(t.y) - 9}
+                      textAnchor="middle"
+                      className="text-[10.5px] font-bold"
+                      fill={CSP.grau}
+                      stroke="white"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                    >
+                      {t.period}
+                    </text>
+                  )}
+                </g>
               ))}
             </g>
           ) : null
@@ -300,6 +321,24 @@ export function PositioningMatrix({
             </g>
           );
         })}
+        {pathLabels &&
+          points.map((p) =>
+            p.currentLabel ? (
+              <text
+                key={`cl-${p.id}`}
+                x={toX(p.x) + (p.x >= 7 ? -14 : 14)}
+                y={toY(p.y) + 18}
+                textAnchor={p.x >= 7 ? "end" : "start"}
+                className="pointer-events-none text-[11px] font-extrabold"
+                fill={CSP.ink}
+                stroke="white"
+                strokeWidth={3}
+                paintOrder="stroke"
+              >
+                {p.currentLabel}
+              </text>
+            ) : null
+          )}
       </svg>
 
       {activeGroup && (
