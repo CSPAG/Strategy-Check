@@ -1,6 +1,7 @@
 "use client";
 
 import { GoalProgress, type GoalRow } from "@/components/charts/GoalProgress";
+import { IconChevronRight } from "@/components/icons";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
 import { teamShapeClass } from "@/lib/team-colors";
 import { SWOT_FIELDS, getStrategicGoalFullLabel, getStrategicGoalShortLabel } from "@/lib/constants";
@@ -75,7 +76,7 @@ export function TeamCard({ team }: { team: TeamTrend }) {
 
       <details className="group mt-5 border-t border-csp-linie pt-4">
         <summary className="cursor-pointer list-none text-[13.5px] font-extrabold text-csp-grau hover:text-csp-ink">
-          <span className="mr-1 inline-block transition group-open:rotate-90">›</span>
+          <IconChevronRight size={14} className="mr-1 inline-block align-[-2px] transition group-open:rotate-90" />
           Abgabe {current.period}: SWOT und {current.measures.length} Massnahmen
           {current.measures.length > 0 &&
             ` · ${current.measures.filter((m) => m.status === "ERLEDIGT").length} erledigt`}

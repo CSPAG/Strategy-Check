@@ -1,6 +1,7 @@
 "use client";
 
 import { AiBadge, callAi } from "@/components/assessment/ai-client";
+import { IconArrowUpRight, IconChevronRight } from "@/components/icons";
 import { Hint } from "@/components/ui";
 import type { TeamTrend } from "@/lib/dashboard-data";
 import type { StoredInsight, Theme } from "@/lib/insights";
@@ -201,7 +202,7 @@ function TeamLink({ name, team, href }: { name: string; team?: TeamTrend; href?:
       className="inline-flex items-center gap-1 whitespace-nowrap underline-offset-2 hover:underline"
     >
       {body}
-      <span aria-hidden className="text-csp-grau-titel">↗</span>
+      <IconArrowUpRight size={13} className="text-csp-grau-titel" />
     </a>
   ) : (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">{body}</span>
@@ -259,7 +260,7 @@ function ThemeColumn({
                 {t.belege.length > 0 && (
                   <details className="group mt-2">
                     <summary className="cursor-pointer list-none text-[12px] font-extrabold text-csp-grau hover:text-csp-ink">
-                      <span className="mr-1 inline-block transition group-open:rotate-90">›</span>
+                      <IconChevronRight size={14} className="mr-1 inline-block align-[-2px] transition group-open:rotate-90" />
                       Originalnennungen ({t.belege.length})
                     </summary>
                     <ul className="mt-2 space-y-1.5 border-l-2 border-csp-linie pl-3">

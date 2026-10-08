@@ -1,6 +1,7 @@
 "use client";
 
 import { AiBadge, callAi } from "@/components/assessment/ai-client";
+import { IconClose } from "@/components/icons";
 import { MEASURE_STATUS, measureGaps, type MeasureStatus } from "@/lib/measure-labels";
 import { useState } from "react";
 
@@ -130,7 +131,7 @@ export function MeasureEditor({
                     className="rounded-full px-2 py-1.5 text-[18px] leading-none text-csp-grau-titel hover:bg-csp-sand hover:text-csp-ink"
                     aria-label="Massnahme entfernen"
                   >
-                    ×
+                    <IconClose size={18} />
                   </button>
                 )}
               </div>

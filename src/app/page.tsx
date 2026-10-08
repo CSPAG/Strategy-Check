@@ -1,9 +1,10 @@
 import { getSession } from "@/lib/session";
+import { IconArrowRight } from "@/components/icons";
 import { canEditAnyAssessment, canAccessDashboard } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatTeamCategory } from "@/lib/constants";
 import { buildTeamColors, teamShapeClass } from "@/lib/team-colors";
-import { PageTitle, StatusDot } from "@/components/ui";
+import { PageTitle, StatusPill } from "@/components/ui";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPeriodScope } from "@/lib/period-scope";
@@ -55,7 +56,7 @@ export default async function HomePage() {
         {canDash && (
           <span className="mt-6 block">
             <Link href="/dashboard" className="btn-primaer">
-              Zum Dashboard →
+              Zum Dashboard <IconArrowRight />
             </Link>
           </span>
         )}
@@ -90,11 +91,11 @@ export default async function HomePage() {
                           title={category}
                         />
                         <span className="truncate text-[15px] font-extrabold">{a.team.name}</span>
-                        <StatusDot status={a.status} />
+                        <StatusPill status={a.status} />
                       </div>
                       <div className="flex gap-1.5">
                         <Link href={`/assessment/${a.id}`} className="btn-primaer px-4 py-1.5 text-[13px]">
-                          {canEdit && a.status !== "SUBMITTED" && period.isActive ? "Bearbeiten" : "Ansehen"}
+                          {!canEdit || !period.isActive ? "Ansehen" : a.status === "SUBMITTED" ? "Aktualisieren" : "Bearbeiten"}
                         </Link>
                         <Link href={`/factsheet/${a.id}`} className="btn-sekundaer px-4 py-1.5 text-[13px]">
                           Factsheet

@@ -65,6 +65,13 @@ export function CspOverview({ teams }: { teams: TeamTrend[] }) {
         today: avg(entries.map((e) => e.value.today)),
         outlook: avg(entries.map((e) => e.value.outlook)),
         previous: prevValues.length ? [{ period: prevPeriod!, value: avg(prevValues) }] : [],
+        breakdown: entries.map((e) => ({
+          name: e.team.name,
+          color: e.team.color,
+          square: e.team.category === "Unit",
+          today: e.value.today,
+          outlook: e.value.outlook,
+        })),
         meta: (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>Ø von {entries.length} {entries.length === 1 ? "Team" : "Teams"}</span>
@@ -166,10 +173,13 @@ export function CspOverview({ teams }: { teams: TeamTrend[] }) {
 
       {goalRows.length > 0 && (
         <div>
-          <h3 className="label">Strategische Ziele · Durchschnitt {period}</h3>
+          <h3 className="label">
+            Strategische Ziele · Durchschnitt {filter === "Alle" ? "aller Teams" : filter === "Unit" ? "der Units" : "der Circles"} ·{" "}
+            {period}
+          </h3>
           <GoalProgress rows={goalRows} />
           <GoalLegend />
-          <p className="nebentext mt-2">Nur Ziele, die mindestens ein Team in dieser Periode verfolgt. Werte sind Durchschnitte über die Teams; Mouse-over auf das Ziel zeigt den vollen Wortlaut.</p>
+          <p className="nebentext mt-2">Grundlage ist die Auswahl oben (Circles, Units oder alle). Gezählt werden nur Teams, die das Ziel in dieser Periode verfolgen. Mouse-over auf die Zeile zeigt alle Einzelwerte, auf den Zieltitel den vollen Wortlaut.</p>
         </div>
       )}
     </div>

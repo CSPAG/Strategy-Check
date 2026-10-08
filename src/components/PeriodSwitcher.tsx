@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { IconChevronDown } from "@/components/icons";
 import { useState } from "react";
 
 /** Perioden-Umschalter im Header: «Aktuell» oder eine vergangene Periode ansehen. */
@@ -52,7 +53,7 @@ export function PeriodSwitcher({
           </option>
         ))}
       </select>
-      <span className="pointer-events-none absolute right-3 text-[11px] text-csp-grau">▾</span>
+      <IconChevronDown size={14} className="pointer-events-none absolute right-3 text-csp-grau" />
     </label>
   );
 }
