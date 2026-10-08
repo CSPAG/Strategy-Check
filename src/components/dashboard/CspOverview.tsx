@@ -20,6 +20,7 @@ export function CspOverview({ teams }: { teams: TeamTrend[] }) {
   const [period, setPeriod] = useState(periods.at(-1) ?? "");
   const [filter, setFilter] = useState<Filter>("Circle");
   const [showTrail, setShowTrail] = useState(true);
+  const [showForecast, setShowForecast] = useState(false);
   const [hoverIds, setHoverIds] = useState<string[]>([]);
   const [listHover, setListHover] = useState<string | null>(null);
 
@@ -42,6 +43,10 @@ export function CspOverview({ teams }: { teams: TeamTrend[] }) {
       trail: showTrail
         ? t.snapshots.slice(0, idx).map((p) => ({ x: p.markt, y: p.intern, period: p.period }))
         : undefined,
+      forecast:
+        showForecast && s.internOutlook !== null && s.marktOutlook !== null
+          ? { x: s.marktOutlook, y: s.internOutlook }
+          : undefined,
     };
   });
 
@@ -113,7 +118,16 @@ export function CspOverview({ teams }: { teams: TeamTrend[] }) {
             onChange={(e) => setShowTrail(e.target.checked)}
             className="h-4 w-4 accent-csp-ink"
           />
-          Entwicklung aus Vorperioden zeigen
+          Entwicklung aus Vorperioden
+        </label>
+        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-bold text-csp-grau">
+          <input
+            type="checkbox"
+            checked={showForecast}
+            onChange={(e) => setShowForecast(e.target.checked)}
+            className="h-4 w-4 accent-csp-ink"
+          />
+          Prognose +6 Monate
         </label>
       </div>
 
@@ -150,6 +164,12 @@ export function CspOverview({ teams }: { teams: TeamTrend[] }) {
                     </span>
                     <span className="shrink-0 tabular-nums text-csp-grau">
                       Intern {s.intern} · Markt {s.markt}
+                      {showForecast && s.internOutlook !== null && (
+                        <span className="text-csp-ink">
+                          {" "}
+                          → {s.internOutlook} · {s.marktOutlook}
+                        </span>
+                      )}
                     </span>
                   </li>
                 );

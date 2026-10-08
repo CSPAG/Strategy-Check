@@ -21,6 +21,9 @@ export type PeriodSnapshot = {
   assessmentId: string;
   intern: number;
   markt: number;
+  /** Reifegrad-Prognose +6 Monate (null, wenn nicht erfasst). */
+  internOutlook: number | null;
+  marktOutlook: number | null;
   goals: GoalValue[];
   swot: { strengths: string; gaps: string; opportunities: string; risks: string };
   measures: MeasureRow[];
@@ -65,6 +68,8 @@ export function toSnapshot(a: Assessment & { period: Period; measureItems?: Meas
     measuresText: [a.measures, a.matrixNotes].filter(Boolean).join("\n\n"),
     intern: a.matrixYToday,
     markt: a.matrixXToday,
+    internOutlook: a.matrixOutlookSet ? a.matrixYOutlook : null,
+    marktOutlook: a.matrixOutlookSet ? a.matrixXOutlook : null,
     goals: goalIds.map((id) => ({
       id,
       today: maturity[String(id)]?.today ?? 2,

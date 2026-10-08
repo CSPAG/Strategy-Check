@@ -57,11 +57,20 @@ export function TeamCard({ team }: { team: TeamTrend }) {
                 color: team.color,
                 shape: team.category === "Unit" ? "square" : "circle",
                 trail: earlier.map((s) => ({ x: s.markt, y: s.intern, period: s.period })),
+                forecast:
+                  current.internOutlook !== null && current.marktOutlook !== null
+                    ? { x: current.marktOutlook, y: current.internOutlook }
+                    : undefined,
               },
             ]}
           />
           <p className="mt-1 text-center text-[12.5px] font-bold tabular-nums text-csp-grau">
             Intern {current.intern} · Markt {current.markt}
+            {current.internOutlook !== null && (
+              <span className="block text-csp-ink">
+                Prognose: Intern {current.internOutlook} · Markt {current.marktOutlook}
+              </span>
+            )}
           </p>
         </div>
         <div className="min-w-0">

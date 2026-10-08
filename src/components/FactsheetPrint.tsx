@@ -236,6 +236,12 @@ export function FactsheetPrint({ assessment }: Props) {
       <p>{MATURITY_INTRO}</p>
       <p>
         <strong>Intern: {assessment.matrixYToday} von 10</strong> · <strong>Markt: {assessment.matrixXToday} von 10</strong>
+        {assessment.matrixOutlookSet && (
+          <>
+            <br />
+            Prognose für {outlook}: Intern {assessment.matrixYOutlook} · Markt {assessment.matrixXOutlook}
+          </>
+        )}
       </p>
       <p className="druck-tabellentitel">Abbildung 1: Positionierung {assessment.team.name}, {period}</p>
       <div className="druck-abbildung">
@@ -247,8 +253,12 @@ export function FactsheetPrint({ assessment }: Props) {
               x: assessment.matrixXToday,
               y: assessment.matrixYToday,
               color: "#0093D3",
+              forecast: assessment.matrixOutlookSet
+                ? { x: assessment.matrixXOutlook, y: assessment.matrixYOutlook }
+                : undefined,
             },
           ]}
+          forecastLabels
         />
       </div>
       {assessment.matrixNotes && (

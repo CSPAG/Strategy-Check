@@ -23,6 +23,7 @@ async function main() {
     const ids = Object.keys(v.g).map(Number);
     await prisma.assessment.update({ where: { id: a.id }, data: {
       status: "SUBMITTED", submittedAt: new Date(), matrixYToday: v.i, matrixXToday: v.m,
+      matrixYOutlook: Math.min(10, v.i + 1), matrixXOutlook: Math.min(10, v.m + (v.m % 2)), matrixOutlookSet: label === "H2 2026",
       strategicGoals: JSON.stringify(ids),
       strategicGoalMaturity: JSON.stringify(Object.fromEntries(ids.map((id) => [id, { today: v.g[id][0], outlook: v.g[id][1] }]))),
       strengths: SWOT[team]?.s ?? "– Hohe Fachkompetenz im Kernthema\n– Langjährige Kundenbeziehungen",

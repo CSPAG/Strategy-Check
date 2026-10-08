@@ -61,10 +61,12 @@ model Assessment {
   maturityNotes         String @default("")
   matrixNotes           String @default("")
 
-  matrixXToday   Int @default(3)
-  matrixYToday   Int @default(3)
-  matrixXOutlook Int @default(3)
-  matrixYOutlook Int @default(3)
+  matrixXToday     Int     @default(3)
+  matrixYToday     Int     @default(3)
+  matrixXOutlook   Int     @default(3)
+  matrixYOutlook   Int     @default(3)
+  /// true, sobald die Reifegrad-Prognose (+6 Monate) erfasst wurde
+  matrixOutlookSet Boolean @default(false)
 
   maturityToday   Int @default(2)
   maturityOutlook Int @default(2)

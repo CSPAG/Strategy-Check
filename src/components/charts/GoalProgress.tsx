@@ -54,6 +54,15 @@ export function GoalScaleHeader() {
   );
 }
 
+function LegendArrow({ color, dashed }: { color: string; dashed?: boolean }) {
+  return (
+    <svg width="26" height="10" viewBox="0 0 26 10" aria-hidden>
+      <line x1="1" y1="5" x2="19" y2="5" stroke={color} strokeWidth={dashed ? 1.6 : 2.5} strokeDasharray={dashed ? "3 3" : undefined} />
+      <path d="M17,1 L25,5 L17,9 z" fill={color} />
+    </svg>
+  );
+}
+
 export function GoalLegend() {
   return (
     <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-bold text-csp-grau">
@@ -67,10 +76,13 @@ export function GoalLegend() {
         <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-csp-grau-titel bg-white" /> Ist frühere Periode
       </span>
       <span className="inline-flex items-center gap-2">
-        <span className="inline-block h-1 w-5 rounded bg-csp-gruen" /> steigend
+        <LegendArrow color={CSP.gruen} /> Prognose steigend
       </span>
       <span className="inline-flex items-center gap-2">
-        <span className="inline-block h-1 w-5 rounded bg-csp-rot" /> sinkend
+        <LegendArrow color={CSP.rot} /> Prognose sinkend
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <LegendArrow color={CSP.grauTitel} dashed /> Entwicklung seit Vorperiode
       </span>
     </div>
   );
@@ -124,6 +136,68 @@ function Breakdown({ row }: { row: GoalRow }) {
   );
 }
 
+/**
+ * Pfeile auf der Spur: grau gestrichelt von der Vorperiode zum Ist (Entwicklung), farbig mit Spitze vom Ist zur
+ * Prognose (grün steigend, rot sinkend). Die Spitze endet am Rand des Zielpunkts (refX), Linien liegen unter den Punkten.
+ */
+const SHORT_STEP = 0.5;
+
+function TrackArrows({ row }: { row: GoalRow }) {
+  const chain = [...(row.previous ?? []).map((p) => p.value), row.today];
+  const delta = row.outlook - row.today;
+  // Liegt die Vorperiode auf derselben Seite wie die Prognose, würden sich die Pfeile überdecken:
+  // dann läuft die Entwicklungslinie leicht oberhalb der Spur.
+  const lastPrev = chain.length > 1 ? chain[chain.length - 2] : row.today;
+  const overlap = delta !== 0 && (lastPrev - row.today) * delta > 0;
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+      <defs>
+        {[
+          ["pfeil-gruen", CSP.gruen],
+          ["pfeil-rot", CSP.rot],
+        ].map(([id, color]) => (
+          <marker key={id} id={id} viewBox="0 0 10 10" refX="19" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill={color} />
+          </marker>
+        ))}
+        <marker id="pfeil-grau" viewBox="0 0 10 10" refX="21" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill={CSP.grauTitel} />
+        </marker>
+      </defs>
+      <g transform={overlap ? "translate(0,-7)" : undefined}>
+      {chain.slice(1).map((to, i) =>
+        chain[i] === to ? null : (
+          <line
+            key={i}
+            x1={pos(chain[i])}
+            x2={pos(to)}
+            y1="50%"
+            y2="50%"
+            stroke={CSP.grauTitel}
+            strokeWidth={1.6}
+            strokeDasharray="3 3"
+            markerEnd="url(#pfeil-grau)"
+          />
+        )
+      )}
+      </g>
+      {delta !== 0 && (
+        <line
+          x1={pos(row.today)}
+          x2={pos(row.outlook)}
+          y1="50%"
+          y2="50%"
+          stroke={trendColor(delta)}
+          strokeWidth={3}
+          strokeLinecap="round"
+          // Bei sehr kleinen Schritten fehlt der Platz für die Spitze — dann zeigt der farbige Ring die Richtung.
+          markerEnd={Math.abs(delta) >= SHORT_STEP ? `url(#${delta > 0 ? "pfeil-gruen" : "pfeil-rot"})` : undefined}
+        />
+      )}
+    </svg>
+  );
+}
+
 /** Hint für einzelne Punkte — entfällt, wenn die ganze Spur schon die Einzelwerte zeigt. */
 function MarkerHint({ off, content, children }: { off: boolean; content: ReactNode; children: ReactNode }) {
   return off ? <>{children}</> : <Hint content={content}>{children}</Hint>;
@@ -132,8 +206,6 @@ function MarkerHint({ off, content, children }: { off: boolean; content: ReactNo
 function GoalProgressRow({ row }: { row: GoalRow }) {
   const hasBreakdown = Boolean(row.breakdown?.length);
   const delta = row.outlook - row.today;
-  const lo = Math.min(row.today, row.outlook);
-  const hi = Math.max(row.today, row.outlook);
   const same = delta === 0;
   const checkDelta = row.check ? row.today - row.check.forecast : 0;
 
@@ -176,12 +248,7 @@ function GoalProgressRow({ row }: { row: GoalRow }) {
             style={{ left: pos(v) }}
           />
         ))}
-        {!same && (
-          <div
-            className="absolute top-1/2 h-[4px] -translate-y-1/2 rounded"
-            style={{ left: pos(lo), width: `calc(${pos(hi)} - ${pos(lo)})`, background: trendColor(delta) }}
-          />
-        )}
+        <TrackArrows row={row} />
         {(row.previous ?? []).map((p) => (
           <span key={p.period} className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ left: pos(p.value) }}>
             <MarkerHint off={hasBreakdown} content={`${p.period} Ist: ${valueText(p.value)}`}>
@@ -192,7 +259,10 @@ function GoalProgressRow({ row }: { row: GoalRow }) {
         <span className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2" style={{ left: pos(row.outlook) }}>
           <MarkerHint off={hasBreakdown} content={<>{row.tooltip}Prognose +6 Monate: {valueText(row.outlook)}</>}>
             <span
-              className={`block rounded-full border-[2.5px] border-csp-ink bg-white ${same ? "h-[22px] w-[22px]" : "h-[15px] w-[15px]"}`}
+              className={`block rounded-full border-[2.5px] bg-white ${same ? "h-[22px] w-[22px]" : "h-[15px] w-[15px]"}`}
+              style={{
+                borderColor: !same && Math.abs(delta) < SHORT_STEP ? trendColor(delta) : CSP.ink,
+              }}
             />
           </MarkerHint>
         </span>

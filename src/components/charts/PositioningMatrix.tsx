@@ -19,6 +19,8 @@ export type MatrixPoint = {
   detail?: string;
   /** Frühere Positionen (chronologisch), werden grau mit Pfeil zur aktuellen verbunden. */
   trail?: { x: number; y: number; period: string }[];
+  /** Prognose +6 Monate — Pfeil vom Status quo dorthin (Teamfarbe), Ring als Zielpunkt. */
+  forecast?: { x: number; y: number };
 };
 
 const W = 400;
@@ -46,12 +48,15 @@ const toY = (v: number) => PAD_T + PLOT - (v - 0.5) * CELL;
 
 export function PositioningMatrix({
   points,
+  forecastLabels = false,
   onPick,
   highlightId,
   onHover,
   className = "",
 }: {
   points: MatrixPoint[];
+  /** Prognosewerte als Text neben dem Ring anzeigen (Einzelansichten). */
+  forecastLabels?: boolean;
   onPick?: (markt: number, intern: number) => void;
   highlightId?: string | null;
   /** Alle Teams der gehoverten Position (bei Überlappung mehrere). */
@@ -87,9 +92,15 @@ export function PositioningMatrix({
     <div className={`relative select-none ${className}`}>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Reifegrad-Matrix Markt und Intern">
         <defs>
-          <marker id="pfeil" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          {/* Spitze endet am Rand des Status-quo-Punkts (refX = Spitze + Radius in Marker-Einheiten) */}
+          <marker id="trail-pfeil" viewBox="0 0 10 10" refX="26" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill={CSP.grauTitel} />
           </marker>
+          {Array.from(new Set(points.filter((p) => p.forecast).map((p) => p.color))).map((c) => (
+            <marker key={c} id={`prog-${c.replace("#", "")}`} viewBox="0 0 10 10" refX="22" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill={c} />
+            </marker>
+          ))}
         </defs>
 
         {/* Fläche, oberes rechtes Feld leicht betont */}
@@ -173,7 +184,8 @@ export function PositioningMatrix({
                 fill="none"
                 stroke={CSP.grauTitel}
                 strokeWidth={1.6}
-                markerEnd={p.trail.at(-1)!.x === p.x && p.trail.at(-1)!.y === p.y ? undefined : "url(#pfeil)"}
+                strokeDasharray="4 3"
+                markerEnd={p.trail.at(-1)!.x === p.x && p.trail.at(-1)!.y === p.y ? undefined : "url(#trail-pfeil)"}
               />
               {p.trail.map((t) => (
                 <circle key={t.period} cx={toX(t.x)} cy={toY(t.y)} r={4.5} fill="white" stroke={CSP.grauTitel} strokeWidth={1.6}>
@@ -183,6 +195,52 @@ export function PositioningMatrix({
             </g>
           ) : null
         )}
+
+        {/* Prognose: Status quo → Prognose, durchgezogen in Teamfarbe */}
+        {points.map((p) => {
+          if (!p.forecast) return null;
+          const fx = toX(p.forecast.x);
+          const fy = toY(p.forecast.y);
+          const same = p.forecast.x === p.x && p.forecast.y === p.y;
+          return (
+            <g key={`prog-${p.id}`} opacity={highlightId && highlightId !== p.id ? 0.25 : 1} className="pointer-events-none">
+              {same ? (
+                <circle cx={fx} cy={fy} r={15} fill="none" stroke={p.color} strokeWidth={2} strokeDasharray="3 3" />
+              ) : (
+                <>
+                  <line
+                    x1={toX(p.x)}
+                    y1={toY(p.y)}
+                    x2={fx}
+                    y2={fy}
+                    stroke={p.color}
+                    strokeWidth={2.2}
+                    markerEnd={`url(#prog-${p.color.replace("#", "")})`}
+                  />
+                  {p.shape === "square" ? (
+                    <rect x={fx - 7.5} y={fy - 7.5} width={15} height={15} rx={2.5} fill="white" stroke={p.color} strokeWidth={2.5} />
+                  ) : (
+                    <circle cx={fx} cy={fy} r={8} fill="white" stroke={p.color} strokeWidth={2.5} />
+                  )}
+                </>
+              )}
+              {forecastLabels && (
+                <text
+                  x={p.forecast.x >= 7 ? fx - (same ? 19 : 13) : fx + (same ? 19 : 13)}
+                  y={p.forecast.y >= 9 ? fy + (same ? 24 : 22) : fy - (same ? 10 : 8)}
+                  textAnchor={p.forecast.x >= 7 ? "end" : "start"}
+                  className="text-[11px] font-extrabold"
+                  fill={CSP.ink}
+                  stroke="white"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                >
+                  {same ? "Prognose = heute" : `Prognose I ${p.forecast.y} · M ${p.forecast.x}`}
+                </text>
+              )}
+            </g>
+          );
+        })}
 
         {/* Punkte — mehrere Teams auf derselben Position werden als Gruppe in ihren Farben gezeichnet */}
         {Array.from(groups.entries()).map(([key, ps]) => {
@@ -267,6 +325,14 @@ export function PositioningMatrix({
                   Intern {p.y} · Markt {p.x}
                   {p.detail ? ` · ${p.detail}` : ""}
                 </span>
+                {p.forecast && (
+                  <>
+                    <br />
+                    <span className="text-white/70">
+                      Prognose: Intern {p.forecast.y} · Markt {p.forecast.x}
+                    </span>
+                  </>
+                )}
               </span>
             </div>
           ))}
