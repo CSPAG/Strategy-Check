@@ -40,6 +40,11 @@ export default async function DashboardPage() {
     await Promise.all(submittedPeriods.map(async (p) => [p, await getStoredInsight(p)] as const))
   );
   const canEdit = canEditAnyAssessment(session.user.role);
+  // «Aktuell» = alle offenen Perioden (bzw. die oben gewählte); Standard im Dashboard ist die neueste davon.
+  const currentPeriods = scope.selected
+    ? [scope.selected.label]
+    : scope.all.filter((p) => p.isActive).map((p) => p.label);
+  const defaultPeriod = currentPeriods.at(-1);
   const periods = sortPeriodLabels(assessments.map((a) => a.period.label));
   const progress = periods.map((p) => ({
     period: p,
@@ -75,7 +80,7 @@ export default async function DashboardPage() {
       </div>
 
       <Section nr="01" title="CSP-Sicht." sub="Alle Teams auf einen Blick.">
-        <CspOverview teams={teams} />
+        <CspOverview teams={teams} defaultPeriod={defaultPeriod} />
       </Section>
 
       <Section
@@ -87,6 +92,7 @@ export default async function DashboardPage() {
         <QualitativeInsights
           teams={teams}
           periods={submittedPeriods}
+          defaultPeriod={defaultPeriod}
           initial={insights}
           canRefresh={canEdit}
           aiEnabled={isAiEnabled()}
@@ -99,7 +105,7 @@ export default async function DashboardPage() {
         sub="Wer macht was bis wann."
         intro="Alle Massnahmen pro Circle und Unit. Überprüfbar ist eine Massnahme mit Erfolgskriterium, Verantwortung und Termin. Der Status lässt sich hier direkt nachführen — auch nach dem Einreichen."
       >
-        <MeasuresOverview teams={teams} canEdit={canEdit} />
+        <MeasuresOverview teams={teams} canEdit={canEdit} currentPeriods={currentPeriods} />
       </Section>
 
       <Section

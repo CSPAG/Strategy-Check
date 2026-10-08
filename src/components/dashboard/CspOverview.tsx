@@ -12,12 +12,14 @@ import { useMemo, useState } from "react";
 type Filter = "Alle" | "Circle" | "Unit";
 
 /** CSP-Sicht: alle eingereichten Teams einer Periode in einer Matrix und konsolidiert pro Ziel. */
-export function CspOverview({ teams }: { teams: TeamTrend[] }) {
+export function CspOverview({ teams, defaultPeriod }: { teams: TeamTrend[]; defaultPeriod?: string }) {
+  // Auswahl: alle Perioden mit Abgaben plus die aktuelle (auch wenn dort noch nichts eingereicht ist).
   const periods = useMemo(
-    () => sortPeriodLabels(teams.flatMap((t) => t.snapshots.map((s) => s.period))),
-    [teams]
+    () =>
+      sortPeriodLabels([...teams.flatMap((t) => t.snapshots.map((s) => s.period)), ...(defaultPeriod ? [defaultPeriod] : [])]),
+    [teams, defaultPeriod]
   );
-  const [period, setPeriod] = useState(periods.at(-1) ?? "");
+  const [period, setPeriod] = useState(defaultPeriod ?? periods.at(-1) ?? "");
   const [filter, setFilter] = useState<Filter>("Circle");
   const [showTrail, setShowTrail] = useState(true);
   const [showForecast, setShowForecast] = useState(false);

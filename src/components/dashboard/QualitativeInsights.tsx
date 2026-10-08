@@ -8,6 +8,7 @@ import type { StoredInsight, Theme } from "@/lib/insights";
 import { MEASURE_STATUS, type MeasureStatus } from "@/lib/measure-labels";
 import { teamShapeClass } from "@/lib/team-colors";
 import { useState } from "react";
+import { sortPeriodLabels } from "@/lib/period-labels";
 
 const CATEGORIES = [
   { key: "strengths", label: "Stärken", color: "bg-csp-blau" },
@@ -38,16 +39,20 @@ export function QualitativeInsights({
   initial,
   canRefresh,
   aiEnabled,
+  defaultPeriod,
 }: {
   teams: TeamTrend[];
   periods: string[];
+  defaultPeriod?: string;
   initial: Record<string, StoredInsight | null>;
   canRefresh: boolean;
   aiEnabled: boolean;
 }) {
-  const [period, setPeriod] = useState(periods.at(-1) ?? "");
+  const start = defaultPeriod ?? periods.at(-1) ?? "";
+  if (defaultPeriod && !periods.includes(defaultPeriod)) periods = sortPeriodLabels([...periods, defaultPeriod]);
+  const [period, setPeriod] = useState(start);
   const [insights, setInsights] = useState(initial);
-  const [view, setView] = useState<View>(initial[periods.at(-1) ?? ""] ? "ki" : "manuell");
+  const [view, setView] = useState<View>(initial[start] ? "ki" : "manuell");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
