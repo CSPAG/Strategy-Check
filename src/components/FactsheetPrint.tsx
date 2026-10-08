@@ -14,26 +14,40 @@ import type { Assessment, Measure, Period, Team } from "@prisma/client";
 import { PRINT_LOGO_DATA_URI } from "@/lib/print-logo";
 import type { FactsheetContext } from "@/lib/factsheet-context";
 
-const FUSS = "font: 7.5pt/10pt Verdana, Geneva, sans-serif; color: #0d0d0d; vertical-align: bottom; padding-bottom: 7mm;";
+const FUSS =
+  "font: 7.5pt/10pt Verdana, Geneva, sans-serif; color: #0093d3; vertical-align: bottom; padding-bottom: 7mm;";
 
-/** Seitenränder und Fusszeile der Word-Vorlage (Tabstopps 96.5 mm und 140 mm, Logo im linken Rand). */
+/** Dokumentname — auch Titel der Seite und damit Dateiname beim Speichern als PDF. */
+export function factsheetDocumentName(teamName: string): string {
+  return `${teamName} Factsheet Strategie-Check`;
+}
+
+/**
+ * Seitenränder und Fusszeile nach der CSP-AG-Word-Vorlage:
+ * Seite 1 mit Adressblock, darunter Logo, Dokumentname und Seitenzahl; Folgeseiten nur Logo und Dokumentname.
+ * Leere Kopfzeilen-Boxen unterdrücken die Browser-Kopfzeile (Datum, Titel).
+ */
 function pageCss(documentName: string): string {
+  const name = JSON.stringify(documentName).slice(1, -1);
   return `
 @page {
   size: A4;
   margin: 14mm 19mm 24mm 49mm;
+  @top-left { content: ""; }
+  @top-center { content: ""; }
+  @top-right { content: ""; }
   @bottom-left-corner { content: url("${PRINT_LOGO_DATA_URI}"); vertical-align: bottom; padding-bottom: 6mm; }
-  @bottom-left { content: "www.csp-ag.ch"; ${FUSS} width: 96.5mm; }
-  @bottom-center { content: ${JSON.stringify(documentName)}; ${FUSS} text-align: left; width: 35.5mm; white-space: nowrap; }
-  @bottom-right { content: counter(page); ${FUSS} text-align: right; width: 10mm; }
-}
-@page :first {
-  @bottom-left {
-    content: "CSP AG St.Gallen | Bern | Zürich | Basel\\A Teufener Strasse 5, 9000 St. Gallen\\A +41 71 231 10 60 · www.csp-ag.ch";
-    white-space: pre; width: 132mm;
-  }
+  @bottom-left { content: "\\00a0 \\00a0 \\00a0 ${name}"; ${FUSS} width: 132mm; white-space: nowrap; }
   @bottom-center { content: none; }
   @bottom-right { content: none; }
+}
+@page :first {
+  margin-bottom: 62mm;
+  @bottom-left {
+    content: "CSP AG\\A St.Gallen | Bern | Zürich | Basel\\A \\A Teufener Strasse 5\\A 9000 St. Gallen\\A +41 71 231 10 60\\A www.csp-ag.ch\\A \\A \\A \\00a0 \\00a0 \\00a0 ${name}";
+    white-space: pre; width: 122mm;
+  }
+  @bottom-right { content: counter(page); ${FUSS} text-align: right; width: 10mm; }
 }`;
 }
 
@@ -72,7 +86,7 @@ export function FactsheetPrint({ assessment, context }: Props) {
 
   return (
     <div className="druck">
-      <style>{pageCss(`${assessment.team.name} · ${period}`)}</style>
+      <style>{pageCss(factsheetDocumentName(assessment.team.name))}</style>
       {/* Titelseite */}
       <section className="druck-titelseite">
         <h1 className="druck-berichtstitel">

@@ -48,6 +48,31 @@
   }
 }
 
+/* Titel-Welle wie auf der CSP-Solutions-Website (WaveHeading.tsx):
+   unsichtbar → CSP-Blau → Ruhefarbe, diagonal von links oben nach rechts unten. */
+.cw .cw-w {
+  white-space: nowrap;
+}
+.cw:not(.cw-go) .ch {
+  opacity: 0;
+}
+.cw.cw-go .ch {
+  animation: cwave 0.75s cubic-bezier(0.3, 0, 0.45, 1) var(--d, 0s) backwards;
+}
+.cw.cw-still .ch {
+  animation: none;
+}
+@keyframes cwave {
+  0% {
+    opacity: 0;
+    color: #0093d3;
+  }
+  28% {
+    opacity: 1;
+    color: #0093d3;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Druck: Factsheet nach CSP-AG-Word-Vorlage (Offerten/Berichte).
    Masse aus der Vorlage: Ränder oben 14 mm, rechts 19 mm, unten 24 mm, links 49 mm,
@@ -61,6 +86,10 @@
 @media print {
   .no-print {
     display: none !important;
+  }
+  .cw .ch {
+    opacity: 1 !important;
+    animation: none !important;
   }
   body {
     background: white;

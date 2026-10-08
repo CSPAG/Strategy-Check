@@ -1,4 +1,5 @@
 import { signIn } from "@/auth";
+import { WaveHeading } from "@/components/WaveHeading";
 import { IconArrowRight } from "@/components/icons";
 
 export default async function LoginPage({
@@ -17,11 +18,11 @@ export default async function LoginPage({
   return (
     <div className="mx-auto max-w-xl py-6 sm:py-12">
       <p className="kicker mb-4">CSPstrategie 2026+</p>
-      <h1 className="titel">
+      <WaveHeading as="h1" className="titel">
         Strategie-Check.
         <br />
         <span className="text-csp-grau-titel">Wo steht Ihr Team?</span>
-      </h1>
+      </WaveHeading>
       <p className="fliesstext mt-6">
         Melden Sie sich mit Ihrem CSP-Konto an, um die Selbsteinschätzung für Ihr Team
         durchzuführen.

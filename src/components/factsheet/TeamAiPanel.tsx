@@ -1,6 +1,7 @@
 "use client";
 
 import { AiBadge, callAi } from "@/components/assessment/ai-client";
+import { WaveHeading } from "@/components/WaveHeading";
 import type { StoredTeamSummary } from "@/lib/team-summary";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -40,9 +41,9 @@ export function ManagementSummary({
   return (
     <section className="rounded-[28px] bg-csp-sand/60 p-6 sm:p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="zwischentitel">
+        <WaveHeading as="h2" className="zwischentitel">
           Management Summary. <span className="text-csp-grau-titel">Das Wichtigste in Kürze.</span>
-        </h2>
+        </WaveHeading>
         <div className="no-print flex flex-wrap items-center gap-3">
           {summary && (
             <span className="flex items-center gap-2 text-[12.5px] font-bold text-csp-grau">
