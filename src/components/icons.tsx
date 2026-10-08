@@ -6,6 +6,8 @@ import {
   ChevronDown,
   ChevronRight,
   CircleCheck,
+  FileText,
+  LoaderCircle,
   LogOut,
   Shield,
   Sparkles,
@@ -33,3 +35,5 @@ export const IconLogout = csp(LogOut);
 export const IconShield = csp(Shield);
 export const IconSparkles = csp(Sparkles);
 export const IconClose = csp(X);
+export const IconFile = csp(FileText);
+export const IconLoader = csp(LoaderCircle);
