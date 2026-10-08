@@ -205,6 +205,17 @@
     font-size: 7pt;
     color: #595959;
   }
+  /* KI-Einordnung am Kapitelanfang */
+  .druck .druck-ki {
+    margin: 0 0 12pt 20mm;
+    padding: 2pt 0 2pt 3mm;
+    border-left: 1.5pt solid #0093d3;
+    font-size: 8.5pt;
+    line-height: 11.5pt;
+  }
+  .druck .druck-ki strong {
+    color: #0093d3;
+  }
   .druck .druck-abbildung {
     margin: 0 0 12pt 20mm;
     width: 90mm;

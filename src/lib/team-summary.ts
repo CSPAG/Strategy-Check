@@ -9,26 +9,26 @@ import type { Assessment, Measure, Period, Team } from "@prisma/client";
 
 /** KI-Auswertung einer einzelnen Abgabe (Circle/Unit, Periode) — für Factsheet und PDF. */
 
+/** Management Summary oben im Factsheet plus eine kurze Einordnung pro Kapitel. */
 export type TeamSummary = {
-  kurzfassung: string;
-  staerken: string[];
-  handlungsfelder: string[];
-  plausibilitaet: string;
+  managementSummary: string;
+  kernpunkte: string[];
   empfehlungen: string[];
+  kapitel: { ziele: string; swot: string; massnahmen: string; reifegrad: string };
 };
 
 export type StoredTeamSummary = { data: TeamSummary; updatedAt: string; stale: boolean };
 
 type Full = Assessment & { team: Team; period: Period; measureItems: Measure[] };
 
-const key = (assessmentId: string) => `team-summary:${assessmentId}`;
+// v2: neues Format (Management Summary + Kapitel); ältere Einträge werden neu erstellt.
+const key = (assessmentId: string) => `team-summary-v2:${assessmentId}`;
 
 const SCHEMA = obj({
-  kurzfassung: str,
-  staerken: strArr,
-  handlungsfelder: strArr,
-  plausibilitaet: str,
+  managementSummary: str,
+  kernpunkte: strArr,
   empfehlungen: strArr,
+  kapitel: obj({ ziele: str, swot: str, massnahmen: str, reifegrad: str }),
 });
 
 function describe(a: Full, previous: Full | null): string {
@@ -100,12 +100,14 @@ export async function computeTeamSummary(assessmentId: string): Promise<StoredTe
   const { text, hash } = await load(assessmentId);
   const data = await aiJson<TeamSummary>({
     instructions:
-      "Werte die Selbsteinschätzung eines Teams zur CSPstrategie 2026+ aus, als Teil seines Factsheets. " +
-      "«kurzfassung»: drei bis fünf Sätze — wo steht das Team, was fällt auf. «staerken» und «handlungsfelder»: " +
-      "je zwei bis vier kurze Punkte (max. 15 Wörter) aus Zielen, SWOT und Reifegrad. «plausibilitaet»: ein bis " +
-      "zwei Sätze, ob Prognosen, Massnahmen und SWOT zusammenpassen (z. B. Prognose steigt ohne passende " +
-      "Massnahme, Prognose der Vorperiode verfehlt). «empfehlungen»: zwei bis vier konkrete nächste Schritte. " +
-      "Nur auf Basis der Angaben, nichts erfinden, sachlich und wertschätzend.",
+      "Werte die Selbsteinschätzung eines Teams zur CSPstrategie 2026+ für sein Factsheet aus (Leserschaft: " +
+      "Geschäftsleitung). «managementSummary»: vier bis sechs Sätze — wo steht das Team, Entwicklung seit der " +
+      "Vorperiode, wichtigste Stärke, grösstes Handlungsfeld, ob Prognosen und Massnahmen zusammenpassen. " +
+      "«kernpunkte»: drei bis fünf Stichpunkte (max. 15 Wörter). «empfehlungen»: zwei bis vier konkrete nächste " +
+      "Schritte. «kapitel»: je ein bis drei Sätze Einordnung zu «ziele» (Zielerreichung, Prognose, Prognose-Check), " +
+      "«swot» (Muster, Widersprüche, Lücken), «massnahmen» (Bezug zu SWOT/Zielen, Überprüfbarkeit, Termine) und " +
+      "«reifegrad» (Position, Entwicklung, Prognose). Nur auf Basis der Angaben, nichts erfinden, sachlich und " +
+      "wertschätzend, Schweizer Hochdeutsch; Entwicklungen mit «→» schreiben (z. B. 2 → 3).",
     schemaName: "team_auswertung",
     schema: SCHEMA,
     input: text,
@@ -116,4 +118,13 @@ export async function computeTeamSummary(assessmentId: string): Promise<StoredTe
     update: { inputHash: hash, json: JSON.stringify(data) },
   });
   return { data, updatedAt: row.updatedAt.toISOString(), stale: false };
+}
+
+/** Nach dem Einreichen im Hintergrund aufrufen — Fehler werden nur protokolliert. */
+export async function refreshTeamSummarySafely(assessmentId: string): Promise<void> {
+  try {
+    await computeTeamSummary(assessmentId);
+  } catch (error) {
+    console.error("[ai:team-summary:auto]", error);
+  }
 }

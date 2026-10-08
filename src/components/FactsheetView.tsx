@@ -12,7 +12,7 @@ import { CSP, categoryColor } from "@/lib/brand";
 import { GoalLegend, GoalProgress } from "@/components/charts/GoalProgress";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
 import { StatusPill } from "@/components/ui";
-import { TeamAiPanel } from "@/components/factsheet/TeamAiPanel";
+import { ChapterNote, ManagementSummary } from "@/components/factsheet/TeamAiPanel";
 import type { FactsheetContext } from "@/lib/factsheet-context";
 import type { Assessment, Measure, Team, Period } from "@prisma/client";
 import { MEASURE_AREA, MEASURE_STATUS, measureGaps, type MeasureStatus } from "@/lib/measure-labels";
@@ -40,6 +40,7 @@ export function FactsheetView({
   const selectedGoals = STRATEGIC_GOALS.filter((g) => goals.includes(g.id));
   const category = formatTeamCategory(assessment.team.category);
   const outlookPeriod = getOutlookPeriodLabel(assessment.period.label);
+  const notes = context?.summary?.data.kapitel;
 
   return (
     <article className="space-y-12">
@@ -57,7 +58,15 @@ export function FactsheetView({
         </h1>
       </header>
 
+      <ManagementSummary
+        assessmentId={assessment.id}
+        summary={context?.summary ?? null}
+        canGenerate={canGenerate}
+        submitted={assessment.status === "SUBMITTED"}
+      />
+
       <FactSection id="ziele" nr="01" title="Zielerreichung." sub={`${assessment.period.label} und Prognose ${outlookPeriod}.`}>
+        <ChapterNote text={notes?.ziele} />
         {selectedGoals.length === 0 ? (
           <p className="nebentext">Keine Ziele ausgewählt.</p>
         ) : (
@@ -89,6 +98,7 @@ export function FactsheetView({
       </FactSection>
 
       <FactSection id="swot" nr="02" title="SWOT-Analyse." sub="Innen und aussen.">
+        <ChapterNote text={notes?.swot} />
         <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
           {(Object.keys(SWOT_FIELDS) as (keyof typeof SWOT_FIELDS)[]).map((key) => (
             <div key={key} id={`swot-${key}`} className="scroll-mt-6 rounded-xl target:bg-csp-blau/10 target:ring-8 target:ring-csp-blau/10">
@@ -108,6 +118,7 @@ export function FactsheetView({
       </FactSection>
 
       <FactSection id="massnahmen" nr="03" title="Massnahmen." sub="Wer macht was bis wann.">
+        <ChapterNote text={notes?.massnahmen} />
         <MeasureList items={assessment.measureItems ?? []} />
         {assessment.measures && <Prose label="Weitere Massnahmen (Freitext)" text={assessment.measures} />}
         {(assessment.measureItems ?? []).length === 0 && !assessment.measures && (
@@ -116,6 +127,7 @@ export function FactsheetView({
       </FactSection>
 
       <FactSection id="reifegrad" nr="04" title="Reifegrad." sub="Intern und Markt.">
+        <ChapterNote text={notes?.reifegrad} />
         <div className="grid gap-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] md:items-start">
           <PositioningMatrix
             points={[
@@ -152,10 +164,9 @@ export function FactsheetView({
         )}
       </FactSection>
 
-      <FactSection id="ki" nr="05" title="KI-Auswertung." sub="Einordnung und Vergleich.">
-        <TeamAiPanel assessmentId={assessment.id} initial={context?.summary ?? null} canGenerate={canGenerate} />
-        <div className="mt-10">
-          <p className="label">Im CSP-Vergleich · Themen aus der Auswertung aller Teams {assessment.period.label}</p>
+      <FactSection id="ki" nr="05" title="Im CSP-Vergleich." sub="Was andere Teams auch nennen.">
+        <div>
+          <p className="label">Themen aus der KI-Auswertung aller Teams {assessment.period.label}, die dieses Team nennt</p>
           {!context || context.teamThemes.length === 0 ? (
             <p className="nebentext">
               {context?.themesUpdatedAt
