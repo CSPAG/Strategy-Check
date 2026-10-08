@@ -1,22 +1,27 @@
 import "server-only";
 import { getStoredInsight } from "@/lib/insights";
 import { parseStrategicGoalMaturity } from "@/lib/strategic-maturity";
-import { findPrevious, getTeamSummary, type StoredTeamSummary } from "@/lib/team-summary";
+import { parseStrategicGoals } from "@/lib/constants";
+import { findHistory, getTeamSummary, type StoredTeamSummary } from "@/lib/team-summary";
 import type { Assessment, Period, Team } from "@prisma/client";
 
 /** Alles, was Factsheet und PDF über die eigene Abgabe hinaus zeigen. */
 export type FactsheetContext = {
   /** Letzte eingereichte Abgabe desselben Teams (Entwicklung, Prognose-Check). */
-  previous: {
-    period: string;
-    goals: Record<string, { today: number; outlook: number }>;
-    intern: number;
-    markt: number;
-  } | null;
+  previous: HistoryEntry | null;
+  /** Alle früheren eingereichten Abgaben, chronologisch (Verlauf). */
+  history: HistoryEntry[];
   /** Themen aus der CSP-weiten KI-Auswertung der Periode, die dieses Team nennt. */
   teamThemes: { category: string; theme: string; beschreibung: string; count: number; quote: string }[];
   themesUpdatedAt: string | null;
   summary: StoredTeamSummary | null;
+};
+
+export type HistoryEntry = {
+  period: string;
+  goals: Record<string, { today: number; outlook: number }>;
+  intern: number;
+  markt: number;
 };
 
 const CATEGORY_LABEL = {
@@ -28,8 +33,8 @@ const CATEGORY_LABEL = {
 } as const;
 
 export async function loadFactsheetContext(a: Assessment & { team: Team; period: Period }): Promise<FactsheetContext> {
-  const [prev, insight, summary] = await Promise.all([
-    findPrevious(a),
+  const [hist, insight, summary] = await Promise.all([
+    findHistory(a),
     getStoredInsight(a.period.label).catch(() => null),
     getTeamSummary(a.id).catch(() => null),
   ]);
@@ -50,15 +55,21 @@ export async function loadFactsheetContext(a: Assessment & { team: Team; period:
     }
   }
 
+  // Ziele nur, wenn sie in der damaligen Abgabe ausgewählt waren
+  const history: HistoryEntry[] = hist.map((h) => {
+    const m = parseStrategicGoalMaturity(h.strategicGoalMaturity ?? "{}");
+    const ids = parseStrategicGoals(h.strategicGoals);
+    return {
+      period: h.period.label,
+      goals: Object.fromEntries(ids.map((id) => [String(id), m[String(id)] ?? { today: 2, outlook: 2 }])),
+      intern: h.matrixYToday,
+      markt: h.matrixXToday,
+    };
+  });
+
   return {
-    previous: prev
-      ? {
-          period: prev.period.label,
-          goals: parseStrategicGoalMaturity(prev.strategicGoalMaturity ?? "{}"),
-          intern: prev.matrixYToday,
-          markt: prev.matrixXToday,
-        }
-      : null,
+    previous: history.at(-1) ?? null,
+    history,
     teamThemes,
     themesUpdatedAt: insight?.updatedAt ?? null,
     summary,

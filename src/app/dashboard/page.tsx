@@ -15,7 +15,7 @@ import { sortPeriodLabels } from "@/lib/period-labels";
 import { PageTitle, Section } from "@/components/ui";
 import { CspOverview } from "@/components/dashboard/CspOverview";
 import { TeamCard } from "@/components/dashboard/TeamCard";
-import { GoalLegend } from "@/components/charts/GoalProgress";
+import { TimelineLegend } from "@/components/charts/GoalTimeline";
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
         nr="04"
         title="Pro Circle und Unit."
         sub="Entwicklung und Prognose-Check."
-        intro="Pro Ziel: Ist heute und Prognose in sechs Monaten. Liegt eine Folgeperiode vor, wird die damalige Prognose dem neuen Ist gegenübergestellt."
+        intro="Verlauf über alle eingereichten Perioden: Ist pro Halbjahr, Prognose für die nächsten sechs Monate. Der gestrichelte Ring zeigt die damalige Prognose — grün, wenn sie getroffen wurde."
       >
         {teams.length === 0 ? (
           <p className="nebentext">Noch keine eingereichten Halbjahresdaten vorhanden.</p>
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
                 <TeamCard key={team.id} team={team} />
               ))}
             </div>
-            <GoalLegend />
+            <TimelineLegend />
           </>
         )}
       </Section>

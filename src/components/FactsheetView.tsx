@@ -10,7 +10,8 @@ import {
 import { parseStrategicGoalMaturity } from "@/lib/strategic-maturity";
 import { getOutlookPeriodLabel } from "@/lib/period-labels";
 import { CSP, categoryColor } from "@/lib/brand";
-import { GoalLegend, GoalProgress } from "@/components/charts/GoalProgress";
+import { GoalTimeline, TimelineLegend } from "@/components/charts/GoalTimeline";
+import { teamTimelineRows, type TimelineSnapshot } from "@/lib/timeline";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
 import { StatusPill } from "@/components/ui";
 import { ChapterNote, ManagementSummary } from "@/components/factsheet/TeamAiPanel";
@@ -35,13 +36,25 @@ export function FactsheetView({
   context?: FactsheetContext;
   canGenerate?: boolean;
 }) {
-  const prev = context?.previous ?? null;
   const goals = parseStrategicGoals(assessment.strategicGoals);
   const goalMaturity = parseStrategicGoalMaturity(assessment.strategicGoalMaturity ?? "{}");
   const selectedGoals = STRATEGIC_GOALS.filter((g) => goals.includes(g.id));
   const category = formatTeamCategory(assessment.team.category);
   const outlookPeriod = getOutlookPeriodLabel(assessment.period.label);
   const notes = context?.summary?.data.kapitel;
+  // Verlauf: alle früheren eingereichten Abgaben plus diese Abgabe
+  const history = context?.history ?? [];
+  const timelineSnapshots: TimelineSnapshot[] = [
+    ...history.map((h) => ({
+      period: h.period,
+      goals: Object.entries(h.goals).map(([id, v]) => ({ id: Number(id), today: v.today, outlook: v.outlook })),
+    })),
+    {
+      period: assessment.period.label,
+      goals: selectedGoals.map((g) => ({ id: g.id, ...(goalMaturity[String(g.id)] ?? { today: 2, outlook: 2 }) })),
+    },
+  ];
+  const timelinePeriods = timelineSnapshots.map((t) => t.period);
 
   return (
     <article className="space-y-12">
@@ -66,33 +79,18 @@ export function FactsheetView({
         submitted={assessment.status === "SUBMITTED"}
       />
 
-      <FactSection id="ziele" nr="01" title="Zielerreichung." sub={`${assessment.period.label} und Prognose ${outlookPeriod}.`}>
+      <FactSection id="ziele" nr="01" title="Zielerreichung." sub={history.length ? `Verlauf ${history[0].period} bis Prognose ${outlookPeriod}.` : `${assessment.period.label} und Prognose ${outlookPeriod}.`}>
         <ChapterNote text={notes?.ziele} />
         {selectedGoals.length === 0 ? (
           <p className="nebentext">Keine Ziele ausgewählt.</p>
         ) : (
           <>
-            <GoalProgress
-              rows={selectedGoals.map((g) => {
-                const m = goalMaturity[String(g.id)] ?? { today: 2, outlook: 2 };
-                return {
-                  key: String(g.id),
-                  title: getStrategicGoalShortLabel(g.id),
-                  fullTitle: g.label,
-                  period: assessment.period.label,
-                  today: m.today,
-                  outlook: m.outlook,
-                  meta: g.label,
-                  previous: prev?.goals[String(g.id)]
-                    ? [{ period: prev.period, value: prev.goals[String(g.id)].today }]
-                    : [],
-                  check: prev?.goals[String(g.id)]
-                    ? { fromPeriod: prev.period, forecast: prev.goals[String(g.id)].outlook }
-                    : undefined,
-                };
-              })}
+            <GoalTimeline
+              periods={timelinePeriods}
+              outlookLabel={`Prognose ${outlookPeriod}`}
+              rows={teamTimelineRows(timelineSnapshots, timelinePeriods)}
             />
-            <GoalLegend />
+            <TimelineLegend />
           </>
         )}
         {assessment.maturityNotes && <Prose label="Erläuterung und Hebel" text={assessment.maturityNotes} />}
@@ -142,10 +140,12 @@ export function FactsheetView({
                 forecast: assessment.matrixOutlookSet
                   ? { x: assessment.matrixXOutlook, y: assessment.matrixYOutlook }
                   : undefined,
-                trail: prev ? [{ x: prev.markt, y: prev.intern, period: prev.period }] : undefined,
+                trail: history.map((h) => ({ x: h.markt, y: h.intern, period: h.period })),
+                currentLabel: `${assessment.period.label} · heute`,
               },
             ]}
             forecastLabels
+            pathLabels
           />
           <div>
             <div className="flex gap-10">

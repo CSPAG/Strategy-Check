@@ -250,4 +250,7 @@
     width: 90mm;
     break-inside: avoid;
   }
+  .druck .druck-verlauf {
+    width: auto;
+  }
 }

@@ -1,35 +1,21 @@
 "use client";
 
-import { GoalProgress, type GoalRow } from "@/components/charts/GoalProgress";
+import { GoalTimeline } from "@/components/charts/GoalTimeline";
+import { teamTimelineRows } from "@/lib/timeline";
+import { getOutlookPeriodLabel } from "@/lib/period-labels";
 import { IconChevronRight } from "@/components/icons";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
 import { teamShapeClass } from "@/lib/team-colors";
-import { SWOT_FIELDS, getStrategicGoalFullLabel, getStrategicGoalShortLabel } from "@/lib/constants";
+import { SWOT_FIELDS } from "@/lib/constants";
 import { MEASURE_STATUS, type MeasureStatus } from "@/lib/measure-labels";
-import { forecastChecks, type TeamTrend } from "@/lib/dashboard-data";
+import type { TeamTrend } from "@/lib/dashboard-data";
 
-/** Ein Circle / eine Unit: Matrix mit Entwicklung und Zielerreichung der aktuellsten Periode. */
+/** Ein Circle / eine Unit: Verlauf über alle eingereichten Perioden plus Prognose (Matrix und Ziele). */
 export function TeamCard({ team }: { team: TeamTrend }) {
   const current = team.snapshots.at(-1)!;
   const earlier = team.snapshots.slice(0, -1);
-  const checks = forecastChecks(team).filter((c) => c.toPeriod === current.period);
-
-  const rows: GoalRow[] = current.goals.map((g) => {
-    const check = checks.find((c) => c.goalId === g.id);
-    return {
-      key: String(g.id),
-      title: getStrategicGoalShortLabel(g.id),
-      fullTitle: getStrategicGoalFullLabel(g.id),
-      period: current.period,
-      today: g.today,
-      outlook: g.outlook,
-      previous: earlier.flatMap((s) => {
-        const prev = s.goals.find((x) => x.id === g.id);
-        return prev ? [{ period: s.period, value: prev.today }] : [];
-      }),
-      check: check ? { fromPeriod: check.fromPeriod, forecast: check.forecast } : undefined,
-    };
-  });
+  const periods = team.snapshots.map((s) => s.period);
+  const rows = teamTimelineRows(team.snapshots, periods);
 
   return (
     <article className="rounded-[24px] bg-white p-5 sm:p-6">
@@ -40,7 +26,7 @@ export function TeamCard({ team }: { team: TeamTrend }) {
         </h3>
         <p className="text-[12.5px] font-bold text-csp-grau">
           {team.category} · Stand {current.period}
-          {earlier.length > 0 && ` · Vergleich ${earlier.map((s) => s.period).join(", ")}`}
+          {earlier.length > 0 && ` · Verlauf seit ${earlier[0].period}`}
         </p>
       </header>
 
@@ -57,12 +43,14 @@ export function TeamCard({ team }: { team: TeamTrend }) {
                 color: team.color,
                 shape: team.category === "Unit" ? "square" : "circle",
                 trail: earlier.map((s) => ({ x: s.markt, y: s.intern, period: s.period })),
+                currentLabel: current.period,
                 forecast:
                   current.internOutlook !== null && current.marktOutlook !== null
                     ? { x: current.marktOutlook, y: current.internOutlook }
                     : undefined,
               },
             ]}
+            pathLabels
           />
           <p className="mt-1 text-center text-[12.5px] font-bold tabular-nums text-csp-grau">
             Intern {current.intern} · Markt {current.markt}
@@ -78,7 +66,7 @@ export function TeamCard({ team }: { team: TeamTrend }) {
           {rows.length === 0 ? (
             <p className="nebentext">Keine strategischen Ziele ausgewählt.</p>
           ) : (
-            <GoalProgress rows={rows} />
+            <GoalTimeline periods={periods} outlookLabel={`Prognose ${getOutlookPeriodLabel(current.period)}`} rows={rows} />
           )}
         </div>
       </div>
