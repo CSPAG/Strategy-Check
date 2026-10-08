@@ -1,3 +1,4 @@
+import { WaveHeading } from "@/components/WaveHeading";
 import {
   MATURITY_INTRO,
   STRATEGIC_GOALS,
@@ -49,13 +50,13 @@ export function FactsheetView({
           <span>CSPstrategie 2026+ · Factsheet</span>
           <StatusPill status={assessment.status} />
         </p>
-        <h1 className="titel">
+        <WaveHeading as="h1" className="titel">
           {assessment.team.name}.
           <br />
           <span className="text-csp-grau-titel">
             {category} · {assessment.period.label}.
           </span>
-        </h1>
+        </WaveHeading>
       </header>
 
       <ManagementSummary
@@ -221,12 +222,12 @@ function FactSection({
 }) {
   return (
     <section id={id} className="scroll-mt-6 break-inside-avoid">
-      <h2 className="zwischentitel mb-6 flex gap-4 border-b border-csp-ink pb-3">
+      <WaveHeading as="h2" className="zwischentitel mb-6 flex gap-4 border-b border-csp-ink pb-3">
         <span className="text-csp-grau-titel">{nr}</span>
         <span>
           {title} <span className="text-csp-grau-titel">{sub}</span>
         </span>
-      </h2>
+      </WaveHeading>
       {children}
     </section>
   );

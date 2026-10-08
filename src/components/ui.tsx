@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { WaveHeading } from "@/components/WaveHeading";
 import { IconCheck } from "@/components/icons";
 
 /** Seitentitel nach CSP-Titelregel: Aussage schwarz, Einordnung grau. */
@@ -16,7 +17,7 @@ export function PageTitle({
   return (
     <div className="mb-10 sm:mb-14">
       {kicker && <p className="kicker mb-4">{kicker}</p>}
-      <h1 className="titel">
+      <WaveHeading as="h1" className="titel">
         {title}
         {sub && (
           <>
@@ -24,7 +25,7 @@ export function PageTitle({
             <span className="text-csp-grau-titel">{sub}</span>
           </>
         )}
-      </h1>
+      </WaveHeading>
       {children && <div className="fliesstext mt-6 max-w-2xl">{children}</div>}
     </div>
   );
@@ -51,10 +52,10 @@ export function Section({
       <div className="flex gap-4">
         {nr && <span className="pt-1 text-[15px] font-extrabold text-csp-grau-titel">{nr}</span>}
         <div className="min-w-0 flex-1">
-          <h2 className="zwischentitel">
+          <WaveHeading as="h2" className="zwischentitel">
             {title}
             {sub && <span className="text-csp-grau-titel"> {sub}</span>}
-          </h2>
+          </WaveHeading>
           {intro && <div className="nebentext mt-3 max-w-3xl">{intro}</div>}
           <div className="mt-6">{children}</div>
         </div>

@@ -7,11 +7,19 @@ import { FactsheetView } from "@/components/FactsheetView";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
-import { FactsheetPrint } from "@/components/FactsheetPrint";
+import { FactsheetPrint, factsheetDocumentName } from "@/components/FactsheetPrint";
+import type { Metadata } from "next";
 import { SummaryWaiter } from "@/components/factsheet/SummaryWaiter";
 import { loadFactsheetContext } from "@/lib/factsheet-context";
 import { isAiEnabled } from "@/lib/ai";
 import { canEditAnyAssessment } from "@/lib/keycloak-roles";
+
+/** Seitentitel = Dokumentname, damit «Als PDF speichern» den richtigen Dateinamen vorschlägt. */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const a = await prisma.assessment.findUnique({ where: { id }, select: { team: { select: { name: true } } } });
+  return { title: a ? factsheetDocumentName(a.team.name) : "Factsheet Strategie-Check" };
+}
 
 export default async function FactsheetPage({
   params,

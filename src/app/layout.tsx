@@ -21,6 +21,10 @@ export default function RootLayout({
   return (
     <html lang="de-CH" className={manrope.variable}>
       <body>
+        {/* Ohne JavaScript: Titel sofort sichtbar statt Welle */}
+        <noscript>
+          <style>{`.cw .ch{opacity:1!important;animation:none!important}`}</style>
+        </noscript>
         <DemoBanner />
         <Header />
         <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">{children}</main>
