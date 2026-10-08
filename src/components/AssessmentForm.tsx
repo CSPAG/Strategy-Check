@@ -161,6 +161,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
   const [data, setData] = useState(assessment);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [pickMode, setPickMode] = useState<"heute" | "prognose">("heute");
   const [measures, setMeasures] = useState<MeasureDraft[]>(() => toDrafts(assessment.measureItems));
 
   const goals = parseStrategicGoals(data.strategicGoals);
@@ -228,6 +229,9 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
 
   const disabled = readOnly;
   const isSubmitted = data.status === "SUBMITTED";
+  // Reifegrad-Prognose: solange nicht erfasst, gleich wie heute.
+  const outlookX = data.matrixOutlookSet ? data.matrixXOutlook : data.matrixXToday;
+  const outlookY = data.matrixOutlookSet ? data.matrixYOutlook : data.matrixYToday;
   const showAi = aiEnabled && !disabled;
 
   const requestSuggestions = (area: "SWOT" | "REIFEGRAD") => (existing: string[]) =>
@@ -410,6 +414,7 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
       <Section nr="04" title="Reifegrad." sub="Intern und Markt." intro={MATURITY_INTRO}>
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
           <div className="space-y-6">
+            <p className="label mb-0">Heute · {data.period.label}</p>
             <TenScalePicker
               label="Intern (Y-Achse)"
               value={data.matrixYToday}
@@ -422,12 +427,45 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
               onChange={(v) => update({ matrixXToday: v })}
               disabled={disabled}
             />
-            {!disabled && (
-              <p className="nebentext">Oder direkt in der Matrix auf das passende Feld klicken.</p>
-            )}
+            <div className="border-t border-csp-linie pt-5">
+              <p className="label mb-0">Prognose +6 Monate · {outlookPeriod}</p>
+              {!data.matrixOutlookSet && (
+                <p className="nebentext mb-3">Startet mit dem heutigen Wert. Anpassen, wenn sich etwas ändern soll.</p>
+              )}
+            </div>
+            <TenScalePicker
+              label="Intern (Y-Achse) in 6 Monaten"
+              value={outlookY}
+              onChange={(v) => update({ matrixYOutlook: v, matrixXOutlook: outlookX, matrixOutlookSet: true })}
+              disabled={disabled}
+            />
+            <TenScalePicker
+              label="Markt (X-Achse) in 6 Monaten"
+              value={outlookX}
+              onChange={(v) => update({ matrixXOutlook: v, matrixYOutlook: outlookY, matrixOutlookSet: true })}
+              disabled={disabled}
+            />
           </div>
           <div className="rounded-[22px] bg-white p-4">
+            {!disabled && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px] font-bold text-csp-grau">
+                <span>Klick in die Matrix setzt</span>
+                <div className="inline-flex rounded-full bg-csp-sand/70 p-1">
+                  {(["heute", "prognose"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPickMode(m)}
+                      className={`rounded-full px-3 py-1 ${pickMode === m ? "bg-csp-ink text-white" : "hover:text-csp-ink"}`}
+                    >
+                      {m === "heute" ? "Heute" : "Prognose"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <PositioningMatrix
+              forecastLabels
               points={[
                 {
                   id: data.id,
@@ -436,9 +474,17 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
                   y: data.matrixYToday,
                   color: categoryColor(category),
                   detail: data.period.label,
+                  forecast: { x: outlookX, y: outlookY },
                 },
               ]}
-              onPick={disabled ? undefined : (x, y) => update({ matrixXToday: x, matrixYToday: y })}
+              onPick={
+                disabled
+                  ? undefined
+                  : (x, y) =>
+                      pickMode === "heute"
+                        ? update({ matrixXToday: x, matrixYToday: y })
+                        : update({ matrixXOutlook: x, matrixYOutlook: y, matrixOutlookSet: true })
+              }
             />
           </div>
         </div>

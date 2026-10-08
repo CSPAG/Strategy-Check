@@ -14,6 +14,10 @@ export function toAssessmentPayload(
     measures: data.measures,
     matrixXToday: data.matrixXToday,
     matrixYToday: data.matrixYToday,
+    // Prognose: ohne eigene Eingabe gilt «gleich wie heute».
+    matrixXOutlook: data.matrixOutlookSet ? data.matrixXOutlook : data.matrixXToday,
+    matrixYOutlook: data.matrixOutlookSet ? data.matrixYOutlook : data.matrixYToday,
+    matrixOutlookSet: true,
     maturityNotes: data.maturityNotes,
     matrixNotes: data.matrixNotes,
     strategicGoals: data.strategicGoals,

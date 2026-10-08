@@ -109,14 +109,23 @@ export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
                 y: assessment.matrixYToday,
                 color: categoryColor(category),
                 detail: assessment.period.label,
+                forecast: assessment.matrixOutlookSet
+                  ? { x: assessment.matrixXOutlook, y: assessment.matrixYOutlook }
+                  : undefined,
               },
             ]}
+            forecastLabels
           />
           <div>
             <div className="flex gap-10">
               <Kennzahl wert={assessment.matrixYToday} was="Intern" />
               <Kennzahl wert={assessment.matrixXToday} was="Markt" />
             </div>
+            {assessment.matrixOutlookSet && (
+              <p className="mt-4 text-[14px] font-bold text-csp-grau">
+                Prognose +6 Monate: <span className="text-csp-ink">Intern {assessment.matrixYOutlook} · Markt {assessment.matrixXOutlook}</span>
+              </p>
+            )}
             <p className="nebentext mt-6">{MATURITY_INTRO}</p>
           </div>
         </div>
