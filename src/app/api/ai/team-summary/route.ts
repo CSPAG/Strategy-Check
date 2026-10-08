@@ -2,11 +2,21 @@ import { AiError } from "@/lib/ai";
 import { requireUser } from "@/lib/api-guard";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { computeTeamSummary } from "@/lib/team-summary";
+import { computeTeamSummary, getTeamSummary } from "@/lib/team-summary";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 export const maxDuration = 60;
+
+/** Ist die KI-Auswertung einer Abgabe da und aktuell? (Für die Ladeanzeige nach dem Einreichen.) */
+export async function GET(req: Request) {
+  const { error } = await requireUser("view");
+  if (error) return error;
+  const id = new URL(req.url).searchParams.get("assessmentId");
+  if (!id) return NextResponse.json({ error: "assessmentId fehlt" }, { status: 400 });
+  const summary = await getTeamSummary(id).catch(() => null);
+  return NextResponse.json({ ready: Boolean(summary && !summary.stale), updatedAt: summary?.updatedAt ?? null });
+}
 
 /** KI-Auswertung einer Abgabe neu erstellen (wird gespeichert und im Factsheet/PDF gezeigt). */
 export async function POST(req: Request) {

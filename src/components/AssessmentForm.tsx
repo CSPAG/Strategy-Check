@@ -29,6 +29,8 @@ import { MeasureEditor, type MeasureDraft } from "@/components/assessment/Measur
 import { callAi } from "@/components/assessment/ai-client";
 import type { MeasureStatus } from "@/lib/measure-labels";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { IconFile } from "@/components/icons";
 import { useState } from "react";
 
 type AssessmentWithMeta = Assessment & {
@@ -535,6 +537,12 @@ export function AssessmentForm({ assessment, readOnly = false, aiEnabled = false
           <button type="button" onClick={() => save(true)} disabled={saving} className="btn-primaer">
             {saving ? "Wird eingereicht…" : isSubmitted ? "Aktualisierung einreichen" : "Einreichen"}
           </button>
+          {isSubmitted && (
+            <Link href={`/factsheet/${data.id}?nach=einreichen`} className="btn-primaer bg-csp-blau hover:bg-csp-blau/90">
+              <IconFile />
+              Factsheet anzeigen
+            </Link>
+          )}
           {message && <p className="px-3 text-[13px] font-bold text-csp-grau">{message}</p>}
         </div>
       )}
