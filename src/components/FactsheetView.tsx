@@ -12,6 +12,8 @@ import { CSP, categoryColor } from "@/lib/brand";
 import { GoalLegend, GoalProgress } from "@/components/charts/GoalProgress";
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
 import { StatusPill } from "@/components/ui";
+import { TeamAiPanel } from "@/components/factsheet/TeamAiPanel";
+import type { FactsheetContext } from "@/lib/factsheet-context";
 import type { Assessment, Measure, Team, Period } from "@prisma/client";
 import { MEASURE_AREA, MEASURE_STATUS, measureGaps, type MeasureStatus } from "@/lib/measure-labels";
 
@@ -23,7 +25,16 @@ type AssessmentView = Assessment & {
   measureItems?: Measure[];
 };
 
-export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
+export function FactsheetView({
+  assessment,
+  context,
+  canGenerate = false,
+}: {
+  assessment: AssessmentView;
+  context?: FactsheetContext;
+  canGenerate?: boolean;
+}) {
+  const prev = context?.previous ?? null;
   const goals = parseStrategicGoals(assessment.strategicGoals);
   const goalMaturity = parseStrategicGoalMaturity(assessment.strategicGoalMaturity ?? "{}");
   const selectedGoals = STRATEGIC_GOALS.filter((g) => goals.includes(g.id));
@@ -62,6 +73,12 @@ export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
                   today: m.today,
                   outlook: m.outlook,
                   meta: g.label,
+                  previous: prev?.goals[String(g.id)]
+                    ? [{ period: prev.period, value: prev.goals[String(g.id)].today }]
+                    : [],
+                  check: prev?.goals[String(g.id)]
+                    ? { fromPeriod: prev.period, forecast: prev.goals[String(g.id)].outlook }
+                    : undefined,
                 };
               })}
             />
@@ -112,6 +129,7 @@ export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
                 forecast: assessment.matrixOutlookSet
                   ? { x: assessment.matrixXOutlook, y: assessment.matrixYOutlook }
                   : undefined,
+                trail: prev ? [{ x: prev.markt, y: prev.intern, period: prev.period }] : undefined,
               },
             ]}
             forecastLabels
@@ -132,6 +150,37 @@ export function FactsheetView({ assessment }: { assessment: AssessmentView }) {
         {assessment.matrixNotes && (
           <Prose label="Massnahmen zur Erhöhung des Reifegrads (in einem Jahr mindestens +1)" text={assessment.matrixNotes} />
         )}
+      </FactSection>
+
+      <FactSection id="ki" nr="05" title="KI-Auswertung." sub="Einordnung und Vergleich.">
+        <TeamAiPanel assessmentId={assessment.id} initial={context?.summary ?? null} canGenerate={canGenerate} />
+        <div className="mt-10">
+          <p className="label">Im CSP-Vergleich · Themen aus der Auswertung aller Teams {assessment.period.label}</p>
+          {!context || context.teamThemes.length === 0 ? (
+            <p className="nebentext">
+              {context?.themesUpdatedAt
+                ? "Dieses Team taucht in keinem der gebündelten Themen auf."
+                : "Für diese Periode gibt es noch keine qualitative Auswertung (Dashboard → Qualitative Auswertung)."}
+            </p>
+          ) : (
+            <ul className="divide-y divide-csp-linie border-y border-csp-linie">
+              {context.teamThemes.map((t, i) => (
+                <li key={i} className="grid gap-x-6 gap-y-1 py-3 sm:grid-cols-[120px_minmax(0,1fr)_auto] sm:items-baseline">
+                  <span className="text-[12.5px] font-bold text-csp-grau">{t.category}</span>
+                  <span>
+                    <span className="text-[14.5px] font-extrabold">{t.theme}</span>
+                    <span className="block text-[13px] font-semibold text-csp-grau">
+                      {t.quote ? `«${t.quote}»` : t.beschreibung}
+                    </span>
+                  </span>
+                  <span className="text-[12.5px] font-bold tabular-nums text-csp-grau">
+                    {t.count === 1 ? "nur dieses Team" : `${t.count} Teams nennen das`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </FactSection>
 
       <footer className="hidden items-center gap-3 border-t border-csp-linie pt-5 print:flex">

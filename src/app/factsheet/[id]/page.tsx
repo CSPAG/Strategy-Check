@@ -8,6 +8,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
 import { FactsheetPrint } from "@/components/FactsheetPrint";
+import { loadFactsheetContext } from "@/lib/factsheet-context";
+import { isAiEnabled } from "@/lib/ai";
+import { canEditAnyAssessment } from "@/lib/keycloak-roles";
 
 export default async function FactsheetPage({
   params,
@@ -27,6 +30,8 @@ export default async function FactsheetPage({
 
   if (!canViewAssessment(session.user, assessment)) redirect("/");
   await auditOnce(session.user, "VIEW", `${assessment.team.name} · ${assessment.period.label}`, "Factsheet");
+  const context = await loadFactsheetContext(assessment);
+  const canGenerate = isAiEnabled() && canEditAnyAssessment(session.user.role);
 
   return (
     <>
@@ -37,9 +42,9 @@ export default async function FactsheetPage({
         <PrintButton />
       </div>
       <div className="nur-bildschirm">
-        <FactsheetView assessment={assessment} />
+        <FactsheetView assessment={assessment} context={context} canGenerate={canGenerate} />
       </div>
-      <FactsheetPrint assessment={assessment} />
+      <FactsheetPrint assessment={assessment} context={context} />
     </>
   );
 }

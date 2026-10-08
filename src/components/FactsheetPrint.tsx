@@ -12,6 +12,7 @@ import { MEASURE_AREA, MEASURE_STATUS, type MeasureStatus } from "@/lib/measure-
 import { PositioningMatrix } from "@/components/charts/PositioningMatrix";
 import type { Assessment, Measure, Period, Team } from "@prisma/client";
 import { PRINT_LOGO_DATA_URI } from "@/lib/print-logo";
+import type { FactsheetContext } from "@/lib/factsheet-context";
 
 const FUSS = "font: 7.5pt/10pt Verdana, Geneva, sans-serif; color: #0d0d0d; vertical-align: bottom; padding-bottom: 7mm;";
 
@@ -45,6 +46,7 @@ function pageCss(documentName: string): string {
 
 type Props = {
   assessment: Assessment & { team: Team; period: Period; measureItems: Measure[] };
+  context?: FactsheetContext;
 };
 
 function lines(text: string): string[] {
@@ -56,7 +58,9 @@ function lines(text: string): string[] {
 
 const dateCh = (d: Date) => d.toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" });
 
-export function FactsheetPrint({ assessment }: Props) {
+export function FactsheetPrint({ assessment, context }: Props) {
+  const prev = context?.previous ?? null;
+  const summary = context?.summary?.data ?? null;
   const goals = parseStrategicGoals(assessment.strategicGoals);
   const maturity = parseStrategicGoalMaturity(assessment.strategicGoalMaturity ?? "{}");
   const selected = STRATEGIC_GOALS.filter((g) => goals.includes(g.id));
@@ -120,15 +124,19 @@ export function FactsheetPrint({ assessment }: Props) {
               <tr>
                 <th style={{ width: "8mm" }}>Nr.</th>
                 <th>Strategisches Ziel</th>
-                <th style={{ width: "24mm" }}>Heute</th>
-                <th style={{ width: "24mm" }}>Prognose</th>
-                <th style={{ width: "11mm" }}>Δ</th>
+                {prev && <th style={{ width: "15mm" }}>{prev.period}</th>}
+                <th style={{ width: "22mm" }}>Heute</th>
+                <th style={{ width: "22mm" }}>Prognose</th>
+                <th style={{ width: "10mm" }}>Δ</th>
+                {prev && <th style={{ width: "22mm" }}>Prognose-Check</th>}
               </tr>
             </thead>
             <tbody>
               {selected.map((g) => {
                 const m = maturity[String(g.id)] ?? { today: 2, outlook: 2 };
                 const d = m.outlook - m.today;
+                const p = prev?.goals[String(g.id)];
+                const miss = p ? m.today - p.outlook : 0;
                 return (
                   <tr key={g.id}>
                     <td>{g.id}</td>
@@ -137,6 +145,7 @@ export function FactsheetPrint({ assessment }: Props) {
                       <br />
                       {g.label}
                     </td>
+                    {prev && <td>{p ? p.today : "–"}</td>}
                     <td>
                       {m.today} · {getMaturityLabel(m.today)}
                     </td>
@@ -144,6 +153,21 @@ export function FactsheetPrint({ assessment }: Props) {
                       {m.outlook} · {getMaturityLabel(m.outlook)}
                     </td>
                     <td>{d > 0 ? `+${d}` : d < 0 ? `−${-d}` : "±0"}</td>
+                    {prev && (
+                      <td>
+                        {p ? (
+                          <>
+                            Prognose {p.outlook}, Ist {m.today}
+                            <br />
+                            <span className="druck-klein">
+                              {miss === 0 ? "getroffen" : miss > 0 ? `übertroffen (+${miss})` : `verfehlt (−${-miss})`}
+                            </span>
+                          </>
+                        ) : (
+                          "–"
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -256,6 +280,7 @@ export function FactsheetPrint({ assessment }: Props) {
               forecast: assessment.matrixOutlookSet
                 ? { x: assessment.matrixXOutlook, y: assessment.matrixYOutlook }
                 : undefined,
+              trail: prev ? [{ x: prev.markt, y: prev.intern, period: prev.period }] : undefined,
             },
           ]}
           forecastLabels
@@ -267,7 +292,71 @@ export function FactsheetPrint({ assessment }: Props) {
           <Prose text={assessment.matrixNotes} />
         </>
       )}
+
+      {/* 5 KI-Auswertung */}
+      <h1 className="druck-h1" data-nr="5">KI-Auswertung</h1>
+      {summary ? (
+        <>
+          <p>{summary.kurzfassung}</p>
+          <h2 className="druck-h2" data-nr="5.1">Stärken</h2>
+          <Bullets items={summary.staerken} />
+          <h2 className="druck-h2" data-nr="5.2">Handlungsfelder</h2>
+          <Bullets items={summary.handlungsfelder} />
+          <h2 className="druck-h2" data-nr="5.3">Plausibilität</h2>
+          <p>{summary.plausibilitaet}</p>
+          <h2 className="druck-h2" data-nr="5.4">Empfehlungen</h2>
+          <Bullets items={summary.empfehlungen} />
+        </>
+      ) : (
+        <p>Für diese Abgabe wurde noch keine KI-Auswertung erstellt.</p>
+      )}
+      <h2 className="druck-h2" data-nr={summary ? "5.5" : "5.1"}>
+        Im CSP-Vergleich
+      </h2>
+      {context && context.teamThemes.length > 0 ? (
+        <>
+          <p className="druck-tabellentitel">
+            Tabelle {++tableNr}: Themen aus der Auswertung aller Teams {period}, die {assessment.team.name} nennt
+          </p>
+          <table className="druck-tabelle">
+            <thead>
+              <tr>
+                <th style={{ width: "20mm" }}>Kategorie</th>
+                <th>Thema und Nennung</th>
+                <th style={{ width: "22mm" }}>Teams</th>
+              </tr>
+            </thead>
+            <tbody>
+              {context.teamThemes.map((t, i) => (
+                <tr key={i}>
+                  <td>{t.category}</td>
+                  <td>
+                    <strong>{t.theme}</strong>
+                    <br />
+                    {t.quote ? `«${t.quote}»` : t.beschreibung}
+                  </td>
+                  <td>{t.count === 1 ? "nur dieses Team" : `${t.count} Teams`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <p>Für diese Periode liegt keine qualitative Auswertung vor oder das Team taucht in keinem Thema auf.</p>
+      )}
+      <p className="druck-klein">KI-generierte Inhalte (OpenAI) auf Basis der Selbsteinschätzungen — zur Diskussion, nicht als Bewertung.</p>
     </div>
+  );
+}
+
+function Bullets({ items }: { items: string[] }) {
+  if (items.length === 0) return <p>–</p>;
+  return (
+    <ul className="druck-aufzaehlung">
+      {items.map((t, i) => (
+        <li key={i}>{t}</li>
+      ))}
+    </ul>
   );
 }
 
