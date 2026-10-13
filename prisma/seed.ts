@@ -13,6 +13,7 @@ const TEAMS = [
   { name: "CIR SiJu", category: "Circle", teamType: "Circle" },
   { name: "CIR Social Impact", category: "Circle", teamType: "Circle" },
   { name: "CIR APEX", category: "Circle", teamType: "Circle" },
+  { name: "CIR Health", category: "Circle", teamType: "Circle" },
   { name: "Unit GL", category: "Unit", teamType: "Unit" },
   { name: "Unit MA-Einsatz", category: "Unit", teamType: "Unit" },
   { name: "Unit Innovation & Services", category: "Unit", teamType: "Unit" },
@@ -22,6 +23,7 @@ const TEAMS = [
   { name: "Unit Akquise", category: "Unit", teamType: "Unit" },
   { name: "Unit Marketing & Kommunikation", category: "Unit", teamType: "Unit" },
   { name: "Unit Simap", category: "Unit", teamType: "Unit" },
+  { name: "Unit Homebase", category: "Unit", teamType: "Unit" },
 ];
 
 const PERIODS = [
@@ -70,8 +72,10 @@ async function main() {
   }
 
   const teams = await prisma.team.findMany();
+  // Basis-Perioden plus alle offenen Perioden: neue Teams erhalten so auch in einer später gestarteten
+  // Periode eine Selbsteinschätzung.
   const periods = await prisma.period.findMany({
-    where: { name: { in: PERIODS.map((p) => p.name) } },
+    where: { OR: [{ name: { in: PERIODS.map((p) => p.name) } }, { isActive: true }] },
   });
 
   for (const period of periods) {
