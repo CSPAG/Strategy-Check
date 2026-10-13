@@ -72,11 +72,8 @@ async function main() {
   }
 
   const teams = await prisma.team.findMany();
-  // Basis-Perioden plus alle offenen Perioden: neue Teams erhalten so auch in einer später gestarteten
-  // Periode eine Selbsteinschätzung.
-  const periods = await prisma.period.findMany({
-    where: { OR: [{ name: { in: PERIODS.map((p) => p.name) } }, { isActive: true }] },
-  });
+  // Alle Perioden (offen und abgeschlossen): neue Teams erscheinen so überall mit einer Selbsteinschätzung.
+  const periods = await prisma.period.findMany();
 
   for (const period of periods) {
     for (const team of teams) {
@@ -98,7 +95,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded ${teams.length} teams, periods ${PERIODS.map((p) => p.label).join(" / ")}, assessments ensured`
+    `Seeded ${teams.length} teams, assessments ensured for ${periods.map((p) => p.label).join(" / ")}`
   );
 }
 
